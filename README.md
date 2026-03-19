@@ -10,7 +10,12 @@ A data-driven prediction system targeting WSL Championship Tour events. The proj
 
 ```
 cowabunga/
-├── plan/                    # Master plan, domain reference, decision log
+├── plan/                    # Master plan (instructions only)
+├── outputs/                 # Phase deliverables and findings
+│   ├── phase_0/             # Domain reference, decision log, scenario model
+│   ├── phase_1/             # Data source inventory, gap analysis
+│   ├── ...                  # One directory per phase
+│   └── phase_13/            # Monitoring reports, retraining logs
 ├── data/
 │   ├── raw/                 # Untransformed data pulls (gitignored)
 │   ├── processed/           # Cleaned and transformed (gitignored)
@@ -28,14 +33,14 @@ cowabunga/
 │   └── monitoring/          # Drift detection, ALT reconstruction monitoring
 ├── tests/                   # Unit tests, leakage tests, known-answer tests
 ├── configs/                 # Venue metadata, model hyperparameters
-├── artifacts/               # Trained model files (gitignored)
-└── reports/                 # DQ reports, scenario models, calibration reports
+└── artifacts/               # Trained model files (gitignored)
 ```
 
 ## Key Documents
 
-- [Master Plan](plan/surf_betting_master_plan_v2.md) — The canonical project plan with all phase definitions, gates, and decision points.
-- [Phase 0 Domain Reference](plan/phase_0_domain_reference.md) — Competitive structure, causal hypotheses, market efficiency assessment, platform landscape.
+- [Master Plan](plan/surf_betting_master_plan_v2.md) — The canonical project plan with all phase definitions, gates, and decision points. Contains instructions only — no findings or outcomes.
+- [Phase 0 Domain Reference](outputs/phase_0/phase_0_domain_reference.md) — Competitive structure, causal hypotheses, market efficiency assessment, platform landscape.
+- [Decision Log](outputs/phase_0/decision_log.md) — All significant project decisions with reasoning.
 
 ## Principles
 
@@ -44,3 +49,4 @@ cowabunga/
 3. **Fresh start.** All legacy work in `old/` is untrusted. Nothing is carried forward without independent re-derivation.
 4. **Calibration over accuracy.** A well-calibrated 60% model beats a miscalibrated 70% model for betting.
 5. **Time-awareness everywhere.** No feature ever uses future information.
+6. **Plan vs. outputs.** The master plan contains instructions. All findings, data, and decisions go in `outputs/`.
