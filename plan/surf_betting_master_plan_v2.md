@@ -72,7 +72,7 @@ Data Collection, Data Quality Checks (cross-cutting), Model Build, Model Testing
 
 **Sensitivity Analysis.** At key decision points, you should test: "If this assumption is wrong by X%, how much does it change the outcome?" This tells you which assumptions matter most and deserve the most scrutiny.
 
-**Versioning Strategy.** We will use Git for version control (GitHub username: `cowabungasurfbetco`). Before any code is written in Phase 2, we need to set up the repository, establish branching conventions, and confirm access. Everything — raw data snapshots, feature engineering code, trained model artifacts, betting algorithm parameters, and this plan itself — will be version-controlled. When performance changes and you don't know why, Git history is how you figure it out. A pre-execution step at the start of Phase 2 will cover repo setup and access verification.
+**Versioning Strategy.** We will use Git for version control. Repository: `github.com/cowabungasurfbetco/cowabunga` (set up and operational). Everything — raw data snapshots, feature engineering code, trained model artifacts, betting algorithm parameters, and this plan itself — will be version-controlled. When performance changes and you don't know why, Git history is how you figure it out.
 
 **The "Edge Decay" Problem.** Even if you find a profitable edge, edges in betting markets tend to shrink over time as markets become more efficient, betting platforms adjust, and other bettors find similar patterns. Your monitoring system needs to detect when your edge is eroding, not just when your model is drifting.
 
@@ -99,13 +99,13 @@ Research and document the following. The output should be a written reference do
 
 **Scoring system — deep dive:** Wave scores operate on a 0-10 scale with the best two waves counting toward a surfer's heat total (maximum 20). But the scoring system deserves a deeper treatment than that summary. Research and clearly document: how judges score individual waves (what criteria — commitment, difficulty, innovation, variety, speed, power, flow), how the panel of judges works (how many judges, how scores are aggregated, whether outlier scores are dropped), and whether there have been documented changes to judging criteria or emphasis over the years. Also important: what happens in unusual situations like interference calls — how does a penalty affect the non-offending surfer's score? How does a second interference (which results in disqualification) work?
 
-**Score normalization for conditions (added post-Phase 0 review):** Raw wave scores are not directly comparable across events or even across days within the same event. The effective scoring ceiling adjusts based on wave quality — a 7.5 might be an elite score on a poor day but mediocre on an excellent day. Phase 5 must include a condition-normalized scoring system: either (a) z-score normalization within each event/round/day, (b) a condition-adjusted score model that estimates what a "7.0" means relative to the day's maximum achievable score, or (c) percentile-based scoring relative to all scores in that heat or round. The specific approach should be evaluated in Phase 5, but the requirement is established here: no model should ingest raw scores without condition context.
+**Score normalization for conditions:** Raw wave scores are not directly comparable across events or even across days within the same event. The effective scoring ceiling adjusts based on wave quality — a 7.5 might be an elite score on a poor day but mediocre on an excellent day. This is a known data quality issue that must be addressed during feature engineering (Phase 5).
 
-**Judging criteria differential weighting hypothesis (added post-Phase 0 review):** Research indicates the five judging criteria (commitment, difficulty, innovation, variety, speed/power/flow) do NOT contribute equally to actual scores awarded. Aerial maneuvers score significantly higher (~7.40 avg vs. ~5.08 for traditional maneuvers) but have the lowest completion rate (~45.4%). This creates an explicit risk-reward tradeoff that varies by surfer style. Hypothesis: the relative importance of each judging criterion has shifted over time (toward progressive/aerial surfing) and may weight differently in men's vs. women's competition. This hypothesis should be tested during Phase 5 (Feature Engineering) by analyzing score distributions by maneuver type if wave-level data with maneuver classification is available. If not available from structured data, this becomes a primary candidate for the video analysis workstream (see Phase 5b).
+**Judging criteria differential weighting:** The five judging criteria (commitment, difficulty, innovation, variety, speed/power/flow) do NOT contribute equally to actual scores awarded. Aerial maneuvers score significantly higher (~7.40 avg vs. ~5.08 for traditional maneuvers) but have the lowest completion rate (~45.4%). This creates a risk-reward tradeoff that varies by surfer style and may weight differently in men's vs. women's competition. This hypothesis is tested during Phase 5 feature engineering.
 
-**Men's vs. women's judging differences (Phase 0 finding):** Men and women use identical judging criteria and scoring scales. No published research documents direct judging bias by gender. However, structural differences affect scoring patterns: (a) aerial maneuvers are "extremely rare" in women's competition compared to men's, due partly to biomechanical differences and partly to historical training access disparities; (b) women's events historically received inferior wave conditions (fewer competition days, weaker swell windows); (c) the smaller women's field (18 vs. 36 pre-2026) means fewer matchup data points per surfer. These structural differences — not judging bias per se — are the primary drivers of the predictability gap between circuits (men's Elo baseline: ~80% accuracy; women's: ~74%). Separate models for each circuit should account for these patterns.
+**Men's vs. women's judging differences:** Men and women use identical judging criteria and scoring scales. No published research documents direct judging bias by gender. However, structural differences affect scoring patterns: (a) aerial maneuvers are "extremely rare" in women's competition compared to men's, due partly to biomechanical differences and partly to historical training access disparities; (b) women's events historically received inferior wave conditions (fewer competition days, weaker swell windows); (c) the smaller women's field (18 vs. 36 pre-2026) means fewer matchup data points per surfer. These structural differences — not judging bias per se — are the primary drivers of the predictability gap between circuits (men's Elo baseline: ~80% accuracy; women's: ~74%). Separate models for each circuit should account for these patterns.
 
-**Interference analysis data requirement (added post-Phase 0 review):** During Phase 3-4 (data collection), build an interference data table capturing: surfer ID, event, round, heat, whether the surfer committed the interference, whether they had priority, whether it was a first or second offense, the score penalty applied, and the heat outcome. This table enables Phase 5 features including: surfer-level interference propensity (some surfers are chronically aggressive with priority), interference impact on heat outcomes (how often does the penalized surfer still win?), and whether interference-prone surfers represent a systematic risk factor that should adjust their predicted win probability. This is a relatively small data engineering task during collection but could yield a unique edge if interference patterns are predictable and not priced into market odds.
+**Interference analysis:** Interference penalties and priority violations affect heat outcomes. Some surfers are chronically aggressive with priority. Document how interference works (first offense penalty, second offense disqualification) and flag interference data as a collection requirement for Phases 3-4.
 
 **Elo and rankings — a separate but related system:** The WSL ranking system (which determines tour qualification, seedings, and jersey assignments) is related to but distinct from the wave scoring system. Research and document how the WSL ranking points system works: how points are awarded per event based on finishing position, how the season standings are calculated, whether there's an official Elo-like system or just cumulative points, and how the ranking system has changed over time. This matters because rankings influence seedings (which affect who faces whom in early rounds), and because rankings/points pressure may be a feature in the model (a surfer fighting for qualification has different incentives than one already safely qualified). Note: "Elo" in the context of this project will also refer to our own Elo rating system built during modeling (Phase 6), which is distinct from the WSL's official ranking system. Be precise about which system is being referenced at all times to avoid confusion.
 
@@ -125,50 +125,19 @@ Research and document the following. The output should be a written reference do
 
 Note: Opening Round and Elimination Round points have historically varied by year and are not always documented publicly with the same precision as R32+ positions. The 2026 format eliminates Finals Day; instead, the final two events (Cloudbreak and Pipe Masters) carry a **1.5x points multiplier** — winner earns 15,000 points. All points values above apply to standard regular-season events; confirm exact 2026 values against the official 2026 WSL Rule Book (Appendix B). Men's and women's events award identical points.
 
-**Ranking feedback loop mitigation (added post-Phase 0 review):** Rankings influence seedings, which influence matchups, which influence outcomes, which influence rankings — a feedback loop. This creates endogeneity: ranking is both predictor and outcome. Specific mitigation approaches to evaluate during Phase 5-6:
+**Ranking feedback loop:** Rankings influence seedings, which influence matchups, which influence outcomes, which influence rankings — a feedback loop that creates endogeneity. This must be addressed during modeling (Phases 5-6) through approaches such as using Elo as the primary skill variable instead of rankings, instrumental variables, or within-event detrending.
 
-1. **Instrumental variable approach:** Use lagged rankings (e.g., ranking at the START of the season) as an instrument that predicts current seeding but is not directly caused by current performance.
-2. **Two-stage modeling:** First model predicts seeding/draw from rankings; second model predicts heat outcome conditional on draw. This decomposes the ranking effect into "who you face" (structural) vs. "how good you are" (skill).
-3. **Elo as the primary skill variable instead of ranking:** Because Elo adjusts for opponent strength and is updated heat-by-heat, it better captures "true skill" without the feedback contamination of points-based rankings. Use Elo as the skill input; use ranking only as a feature capturing seeding effects and pressure.
-4. **Within-event detrending:** Within a single event, rankings are fixed. This creates a quasi-natural experiment: the ranking is determined before the event starts, so within-event variation in opponent quality comes from the bracket draw, not from ranking changes. Exploit this by treating within-event heats as "fixed-ranking" observations.
+**Project Elo system:** The project will build its own Elo rating system during Phase 6, separate from WSL official rankings. This allows opponent-strength-adjusted skill estimation that is updated heat-by-heat. The Elo/Glicko-2 formula, K-factor schedule, surface-type conditioning, and 3-person heat handling are all design decisions deferred to Phase 6 where they can be evaluated empirically.
 
-The recommended approach is #3 (Elo as primary, ranking as structural/pressure feature) with #4 for robustness. Document the choice in the Decision Log during Phase 6.
+**WSL Ranking vs. Project Elo divergence:** If the Elo system produces meaningfully different rankings than WSL official standings, the divergence cases are where the model is most likely to find edge (if the market prices based on WSL ranking rather than true skill). A formal divergence analysis is specified in Phase 8.
 
-**Project Elo system — formula and design intent (added post-Phase 0 review):**
-
-The project's Elo system is separate from WSL rankings and will be built from scratch during Phase 6. The core formula:
-
-```
-New_Elo_A = Old_Elo_A + K × (Actual_A - Expected_A)
-```
-
-Where:
-- `Expected_A = 1 / (1 + 10^((Elo_B - Elo_A) / 400))` — the logistic function giving the expected probability of A beating B based on rating difference
-- `Actual_A = 1` if A wins, `0` if A loses
-- `K` is the update factor (controls how quickly ratings change). Typical starting values: K=32 for new surfers (ratings change fast), K=16 for established surfers (ratings change slowly). The optimal K-factor will be tuned empirically.
-- Starting Elo for all surfers: 1500 (arbitrary anchor point; only differences matter)
-
-Design choices to resolve during Phase 6:
-- **K-factor schedule:** Should K decay with number of rated heats (like Glicko's RD) or be fixed?
-- **Surface-type conditioning:** Should Elo be split by break type (reef Elo, beach break Elo, point break Elo)?
-- **Recency weighting:** Should older results decay? If so, at what rate?
-- **3-person heat handling:** For pre-2019 data, how to credit a 2nd-place finish in a 3-person heat? Options: treat as half-win (0.5), treat as loss (0), or use a 3-player Elo extension.
-- **Glicko-2 alternative:** Glicko-2 adds a "rating deviation" (confidence interval on the Elo estimate) and a "volatility" parameter (how erratic the surfer is). This naturally handles inactivity (RD increases when a surfer doesn't compete) and may be worth implementing alongside basic Elo for comparison.
-
-**WSL Ranking vs. Project Elo — comparison and divergence analysis (added post-Phase 0 review):** A specific validation step during Phase 8: compare the project Elo rankings against the official WSL rankings for each season. Compute a divergence index (e.g., Kendall's tau rank correlation) and identify the surfers where Elo and WSL rankings disagree most. These divergence points are interesting for two reasons: (a) they reveal which surfers are over- or under-valued by a points-based system vs. an opponent-adjusted system, and (b) if the betting market prices based on WSL ranking rather than true skill (as proxied by Elo), the divergence cases are exactly where the model is most likely to find edge.
-
-**Fantasy draft / total surfer value market exploration (added post-Phase 0 review):** If the Elo system produces meaningfully different rankings than WSL official rankings, there may be an additional market beyond direct heat betting: fantasy surf leagues (e.g., WSL Fantasy Surfer, third-party fantasy platforms). If the model identifies surfers whose "total event value" (expected points across all rounds) is systematically underpriced relative to their draft position or fantasy cost, this could be a lower-risk, higher-volume application of the model. Research during Phase 9 whether fantasy surf markets exist with real-money stakes, and whether the model's surfer valuations translate into fantasy draft edge. This is a secondary monetization path, not a replacement for direct betting.
+**Fantasy draft / alternative markets:** If the model produces meaningfully different surfer valuations than the market, fantasy surf leagues may offer an additional monetization path. This is explored during Phase 9.
 
 **Tour structure:** Championship Tour vs. Challenger Series vs. Qualifying Series. Number of events per season and how that's changed. Wildcard entries, injury replacements, and how the field is composed at each event.
 
 **Why this matters for modeling:** Every structural change listed above represents a potential data discontinuity. If you train a model on data spanning a format change without accounting for it, the model is learning from two different sports simultaneously. You need to know where the break points are before you design your data schema.
 
-**2026 as the structural target for live/near-live betting (added post-Phase 0 review):** The 2026 format — with higher-seeded surfers starting with priority in 2-person sudden-death heats — is the structure we are building toward. While historical data from earlier formats is valuable for learning surfer skill and tendencies, the model's deployment context is 2026+ events. This has specific implications for the modeling pipeline:
-
-1. **Priority as a first-class model input:** In 2026, seeding determines who starts with priority. Priority determines wave access. This chain (seeding → priority → wave access → score → outcome) must be explicitly modeled, not treated as noise. The model needs a "priority advantage" parameter that can be estimated from historical data where priority information is available.
-2. **Live betting integration:** Given the 2026 format's real-time nature (sudden-death heats where momentum shifts rapidly), the model should be designed from the start to support live or near-live probability updates. This means: (a) the model must accept mid-heat state as input (current scores, waves caught, priority status, time remaining), (b) probability estimates should update in real-time, and (c) the betting strategy (Phase 9) should include a live betting component alongside pre-event betting.
-3. **Historical data mapping:** Most historical data does NOT have priority information. The model should learn the general skill/matchup relationships from all historical data, then apply the priority adjustment as a separate layer estimated from 2022+ data where seeding-to-priority mapping is known. This is a transfer learning approach: learn skill from depth, learn priority effects from recency.
-4. **Logical mapping document:** Before Phase 5, produce a written document mapping how each historical format era (2010-2018 three-person heats, 2019-2021 transition, 2022-2025 with mid-season cut, 2026+) translates to the 2026 prediction context. Which features carry over? Which are era-specific? What adjustments are needed? This prevents ad hoc decisions during feature engineering.
+**2026 format as deployment context:** The 2026 format — with higher-seeded surfers starting with priority in 2-person sudden-death heats, no Finals Day, and 1.5x multiplier for final two events — is the structure we are building toward. While historical data is valuable for learning surfer skill, the model's deployment context is 2026+ events. This has implications for priority modeling, live betting integration, and historical data mapping, which are detailed in their respective phases (5, 6, and 9).
 
 ### 0.2 — Generate Domain Hypotheses
 
@@ -268,7 +237,7 @@ For each source you find, document: what data it contains, how far back it goes,
 - Temporal resolution (hourly? every 30 minutes? daily averages?)
 - Spatial resolution (how far is the nearest buoy from the actual break?)
 
-**The buoy-to-shore calibration problem:** This is a meaningful sub-problem that will likely require its own modeling effort. Buoy data (swell height, period, direction) measured offshore is not the same as what a surfer experiences at the break. The wave transforms as it travels from the buoy to the shore — bottom contour, refraction, local wind effects, and tide all modify the wave. To use buoy/forecast data for prediction, you need either (a) a physics-based or empirical model that translates buoy readings to shore conditions at each specific break, or (b) historical data that lets you calibrate the relationship between buoy readings and actual competition conditions. This calibration would include confidence intervals — how much uncertainty exists between buoy reading X and actual wave face Y at break Z? Those confidence intervals should carry through to the competition prediction model as input uncertainty. Plan for this as a sub-step within Phase 5 (Feature Engineering), with its own gate. It may expand the scope significantly but should meaningfully improve condition-dependent predictions.
+**The buoy-to-shore calibration problem:** Buoy data measured offshore is not the same as what a surfer experiences at the break. Bottom contour, refraction, local wind, and tide all modify the wave between buoy and shore. During this audit, identify which buoys serve each WSL venue and assess the data quality and temporal resolution available. The actual calibration model is built in Phase 5.1b.
 
 **Betting odds data:** Historical odds archives (odds-portal, oddsportal.com for surf), NXTbets if they have historical data, any other sources of what the odds were at the time of past events.
 
@@ -288,7 +257,7 @@ For each source, before committing to use it, evaluate:
 
 **Video data — a planned future data source:** Competition video is a potentially rich data source that is unlikely to be captured in structured datasets. Before dismissing it as too expensive or complex, identify what video-derivable features might be valuable and not available from any other source. Candidates include: paddling strength/fitness (how quickly a surfer paddles into waves — a proxy for physical condition), wave selection patterns (does a surfer tend to pick off smaller, safer waves or wait for bigger, riskier ones?), riding style classification (cautious vs. aggressive, aerial-focused vs. power-focused, signature moves like Caroline Marks' backhand turns), positioning and priority strategy (how a surfer uses the priority system tactically), and the time between waves (which could indicate fatigue or strategic patience). The plan for video is not to build a computer vision pipeline now, but to: (a) catalog what video-derived features would be most valuable, (b) determine how much video would be needed for a representative sample (likely a set of heats per surfer across multiple wave types, not exhaustive footage), (c) determine whether timestamp markers exist for each wave within a heat's video recording (this would dramatically reduce the amount of video that needs to be reviewed by pinpointing exactly when each wave occurs), and (d) scope the effort as a potential Phase 5b sub-project for manual or semi-automated feature extraction. This keeps the door open without derailing the current plan.
 
-**Video analysis — aerial risk/reward sub-workstream (added post-Phase 0 review):** Within the video analysis scope, aerial maneuvers deserve specific, dedicated attention due to the asymmetric risk/reward profile: airs score ~2.3 points higher than traditional maneuvers when completed (~7.40 vs. ~5.08 avg), but completion rates are only ~45.4% vs. ~90% for traditional maneuvers. This creates a unique modeling opportunity:
+**Video analysis — aerial risk/reward sub-workstream:** Within the video analysis scope, aerial maneuvers deserve specific, dedicated attention due to the asymmetric risk/reward profile: airs score ~2.3 points higher than traditional maneuvers when completed (~7.40 vs. ~5.08 avg), but completion rates are only ~45.4% vs. ~90% for traditional maneuvers. This creates a unique modeling opportunity:
 
 - **Per-surfer aerial propensity:** How often does each surfer attempt airs in competition? This varies enormously and is a proxy for style and risk appetite.
 - **Per-surfer aerial completion rate:** How often do they land? A surfer who attempts airs frequently but lands only 30% is a different risk profile than one who attempts rarely but lands 70%.
@@ -343,9 +312,7 @@ If the answer to #1 is "no," the project may not be viable in its current form. 
 
 ### 2.0 — Git Repository Setup
 
-Before any design work begins, set up the project repository. GitHub username: `cowabungasurfbetco`. Create the repo, establish a branching convention (recommendation: `main` for stable/reviewed work, `dev` for active work, feature branches for specific phases), set up a basic README, and confirm push/pull access works. This plan document itself should be the first committed file. From this point forward, all code, configuration, data schemas, and documentation are version-controlled.
-
-🔴 **HUMAN GATE:** Confirm Git access is working — you can clone, commit, push, and pull.
+✅ **COMPLETED:** The project repository is set up at `github.com/cowabungasurfbetco/cowabunga` (private). Branching convention: `main` for stable/reviewed work, `dev` for active development, feature branches for specific phases (e.g., `feature/phase-3-pilot-etl`). All code, configuration, data schemas, and documentation are version-controlled from this point forward.
 
 ### 2.1 — Entity-Relationship Design
 
@@ -364,6 +331,8 @@ Based on what you learned in Phase 1 (not what you wish you had), design your da
 **Buoy/Forecast Data (if pursuing the buoy-to-shore calibration):** Buoy ID, timestamp, swell height, swell period, swell direction, associated break, along with the shore-observed conditions for calibration.
 
 **Odds (if available):** Event ID, heat ID, surfer ID, bet type (heat win, event win, podium), odds value, timestamp of odds, platform.
+
+**Interference events:** Heat ID, surfer ID, whether the surfer committed or received the interference, priority status at time of offense, first or second offense, score penalty applied, and heat outcome. This enables Phase 5 features including surfer-level interference propensity, interference impact on outcomes, and whether interference-prone surfers represent a systematic risk factor not priced into market odds.
 
 Key design decisions to make explicitly:
 
@@ -503,7 +472,22 @@ Document every field: name, type, source, description, valid range, known quirks
 
 🔵 **RE-ANCHOR CHECK:** Re-read Phase 0 causal graph. Every feature you create should map to a node or edge in that graph. If you find yourself creating features that don't correspond to any hypothesized causal pathway, pause and ask: is this a new hypothesis that should be added to the graph, or is this an unmotivated fishing expedition?
 
-### 5.0b — Hypothesis Validation Visualizations (added post-Phase 0 review)
+### 5.0a — Historical Format Era Mapping Document
+
+Before any feature engineering, produce a written document mapping how each historical format era translates to the 2026 prediction context:
+- **2010-2018:** Three-person heats. Features must account for the fundamentally different competitive dynamic.
+- **2019-2021:** Transition to two-person heats. Most directly comparable to 2026 format.
+- **2022-2025:** Mid-season cut era. Season pressure features are era-specific.
+- **2026+:** No Finals Day, 1.5x multiplier for final events, seeding determines starting priority.
+
+For each era, document: which features carry over, which are era-specific, and what adjustments are needed. This prevents ad hoc decisions during feature engineering.
+
+Additionally, the 2026 format creates specific modeling requirements:
+1. **Priority as a first-class model input:** Seeding → priority → wave access → score → outcome must be explicitly modeled. Estimate a "priority advantage" parameter from historical data where priority information is available.
+2. **Live betting integration:** The model should be designed from the start to support live or near-live probability updates: accepting mid-heat state as input (current scores, waves caught, priority status, time remaining). The betting strategy (Phase 9) should include a live betting component.
+3. **Historical data mapping:** Learn general skill/matchup relationships from all historical data, then apply priority adjustment as a separate layer estimated from 2022+ data where seeding-to-priority mapping is known (transfer learning approach).
+
+### 5.0b — Hypothesis Validation Visualizations
 
 Before engineering features, produce exploratory visualizations to validate (or challenge) the Phase 0 domain hypotheses using the collected data. This is a pre-feature-engineering step that grounds the causal hypotheses in observed data patterns. For each hypothesis category:
 
@@ -519,7 +503,7 @@ These visualizations should be reviewed before proceeding to feature engineering
 
 🔴 **HUMAN GATE:** Review the hypothesis visualizations. Do the data patterns align with the causal hypotheses? Are there surprising patterns that suggest new hypotheses? Are there hypotheses that the data clearly contradicts? Update the causal graph as needed before proceeding.
 
-### 5.0c — Market Model Reconstruction: Reverse-Engineering ALT Sports Data's Pricing Function (added post-Phase 0 review)
+### 5.0c — Market Model Reconstruction: Reverse-Engineering ALT Sports Data's Pricing Function
 
 **Purpose:** Before engineering features for *our* model, understand what the *market's* model is already pricing. If ALT's odds-setting model is simple (primarily rank-based), then the gap between what they price and what actually drives outcomes defines our edge surface. If their model is sophisticated, the edge surface is smaller and we need to know that early.
 
@@ -579,13 +563,15 @@ Using your Phase 0 hypotheses as a roadmap, generate candidate features. Organiz
 
 **Wave-level features (from all-waves data):** If all individual wave scores were captured, derive features such as: scoring consistency (standard deviation of wave scores within a heat), "ceiling" performance (highest single wave score over recent heats), wave selection efficiency (ratio of counting waves to total waves attempted), risk appetite (frequency of high-variance scoring attempts), and fatigue indicators (do scores decline within a heat?).
 
+**Score normalization requirement (from Phase 0 domain finding):** No model should ingest raw scores without condition context. Implement one of the following approaches: (a) z-score normalization within each event/round/day, (b) a condition-adjusted score model that estimates what a "7.0" means relative to the day's maximum achievable score, or (c) percentile-based scoring relative to all scores in that heat or round. Evaluate all three and compare. Document the choice and reasoning in the Decision Log.
+
 **Critical consideration — time-aware features:** Every feature must be computed using only information available BEFORE the heat it's predicting. For example, "win rate in the current season" must be computed using only events that occurred before the current event, not the full season's results. This is the most common source of data leakage in sports models and it can massively inflate apparent accuracy. Build this constraint into your feature engineering code from the start, and verify it with explicit tests.
 
 ### 5.1b — Buoy-to-Shore Calibration Model (Conditional)
 
 If condition data and buoy data are available from Phase 1/4, this sub-step builds the calibration model that translates offshore buoy readings to onshore wave conditions at each specific break. This is essentially a small secondary model that feeds into the main prediction model. It should include: an empirical or physics-informed mapping from buoy swell readings to estimated wave face height/quality at each WSL venue, confidence intervals on that mapping (how much uncertainty exists?), and validation against actual competition-day conditions (if available). These confidence intervals should propagate into the competition model's condition features as input uncertainty rather than being treated as point estimates.
 
-**Buoy-to-shore translation formula — explicit requirement (added post-Phase 0 review):** The calibration model must account for at least the following physical variables: swell height (Hs), swell period (Tp), swell direction (Dp), wind speed and direction, tide state, and bathymetric characteristics of each break. The translation is NOT a single formula — it varies by venue because bottom contour, reef shape, and exposure angle differ at every WSL break. The minimum viable approach is an empirical regression per venue: `wave_face_at_shore = f(Hs_buoy, Tp, Dp, wind, tide | venue)`, calibrated against reported competition-day wave heights from WSL heat data or Surfline observations. A more sophisticated approach would use shallow-water wave transformation physics (Snell's law for refraction, shoaling coefficients, wave breaking criteria), but the empirical approach may be sufficient given limited data. The deliverable is: for each WSL venue, a calibrated function that takes buoy/forecast inputs and outputs estimated shore wave conditions with confidence intervals.
+**Buoy-to-shore translation formula — explicit requirement:** The calibration model must account for at least the following physical variables: swell height (Hs), swell period (Tp), swell direction (Dp), wind speed and direction, tide state, and bathymetric characteristics of each break. The translation is NOT a single formula — it varies by venue because bottom contour, reef shape, and exposure angle differ at every WSL break. The minimum viable approach is an empirical regression per venue: `wave_face_at_shore = f(Hs_buoy, Tp, Dp, wind, tide | venue)`, calibrated against reported competition-day wave heights from WSL heat data or Surfline observations. A more sophisticated approach would use shallow-water wave transformation physics (Snell's law for refraction, shoaling coefficients, wave breaking criteria), but the empirical approach may be sufficient given limited data. The deliverable is: for each WSL venue, a calibrated function that takes buoy/forecast inputs and outputs estimated shore wave conditions with confidence intervals.
 
 🔴 **HUMAN GATE on 5.1b:** Review the calibration model's accuracy and confidence intervals. Are the confidence intervals tight enough to be useful, or is the buoy-to-shore mapping so noisy that condition features won't add value? This is a scope check — if the calibration is poor, it may be better to drop condition features entirely and rely on surfer and matchup features only, rather than adding noisy inputs that degrade the model.
 
@@ -649,6 +635,17 @@ The categories to evaluate include (but don't limit yourself to):
 
 **Elo / Glicko rating systems:** Iterative rating systems where surfers gain or lose points based on wins and losses. Widely used in chess, increasingly in other sports. Strengths: simple, dynamic (captures form changes), interpretable, minimal data needs. Weaknesses: doesn't directly incorporate external covariates, sensitive to K-factor tuning, not inherently probabilistic without extension.
 
+**Project Elo design decisions to resolve in this phase:**
+
+The core formula: `New_Elo_A = Old_Elo_A + K × (Actual_A - Expected_A)` where `Expected_A = 1 / (1 + 10^((Elo_B - Elo_A) / 400))`. Starting Elo: 1500 for all surfers.
+
+Specific design choices:
+- **K-factor schedule:** Should K decay with number of rated heats (like Glicko's RD) or be fixed? Starting values: K=32 for new surfers, K=16 for established.
+- **Surface-type conditioning:** Should Elo be split by break type (reef Elo, beach break Elo, point break Elo)?
+- **Recency weighting:** Should older results decay? If so, at what rate?
+- **3-person heat handling:** For pre-2019 data, how to credit a 2nd-place finish? Options: treat as half-win (0.5), treat as loss (0), or use a 3-player Elo extension.
+- **Glicko-2 alternative:** Glicko-2 adds rating deviation (confidence interval) and volatility (how erratic the surfer is). This naturally handles inactivity and may be worth implementing alongside basic Elo for comparison.
+
 **Logistic regression:** Predict heat outcome as a binary variable from features. Strengths: highly interpretable, produces calibrated probabilities naturally, fast, easy to understand coefficients. Weaknesses: assumes linear relationships between features and log-odds, may miss complex interactions.
 
 **Regularized regression (Ridge, Lasso, Elastic Net):** Logistic regression with penalties that prevent overfitting. Especially relevant given your small sample size.
@@ -658,6 +655,17 @@ The categories to evaluate include (but don't limit yourself to):
 **Bayesian hierarchical models:** Estimate surfer abilities with uncertainty, allow partial pooling across similar surfers or conditions. Strengths: naturally handles small samples (via priors), quantifies uncertainty (critical for betting — you want to know not just "who's favored" but "how confident am I"), can incorporate domain knowledge through prior specification, causal structure can be encoded. Weaknesses: computationally slower, requires more statistical sophistication to specify and diagnose.
 
 **Ensemble approaches:** Combine multiple model types to get the best of each. Strengths: often outperforms any single model, reduces model-specific biases. Weaknesses: more complex, harder to interpret, risk of overfitting the ensemble itself.
+
+### 6.1b — Ranking Feedback Loop Mitigation
+
+The ranking feedback loop identified in Phase 0 (rankings → seedings → matchups → outcomes → rankings) creates endogeneity that must be addressed in model design. Evaluate these approaches:
+
+1. **Instrumental variable approach:** Use lagged rankings (e.g., ranking at the START of the season) as an instrument that predicts current seeding but is not directly caused by current performance.
+2. **Two-stage modeling:** First model predicts seeding/draw from rankings; second model predicts heat outcome conditional on draw. This decomposes the ranking effect into "who you face" (structural) vs. "how good you are" (skill).
+3. **Elo as the primary skill variable instead of ranking:** Because Elo adjusts for opponent strength and is updated heat-by-heat, it better captures "true skill" without the feedback contamination of points-based rankings. Use Elo as the skill input; use ranking only as a feature capturing seeding effects and pressure.
+4. **Within-event detrending:** Within a single event, rankings are fixed. This creates a quasi-natural experiment: the ranking is determined before the event starts, so within-event variation in opponent quality comes from the bracket draw, not from ranking changes. Exploit this by treating within-event heats as "fixed-ranking" observations.
+
+The recommended approach is #3 (Elo as primary, ranking as structural/pressure feature) with #4 for robustness. Document the choice in the Decision Log.
 
 ### 6.2 — Evaluate Against Your Criteria
 
@@ -812,6 +820,8 @@ Your model's absolute performance is less meaningful than its performance relati
 
 **Elo-only model:** If you built a simple Elo system alongside a more complex model, how much does the complexity actually buy you?
 
+**WSL Ranking vs. Project Elo divergence analysis (from Phase 0 requirement):** Compare the project Elo rankings against official WSL rankings for each season. Compute a divergence index (e.g., Kendall's tau rank correlation) and identify the surfers where Elo and WSL rankings disagree most. These divergence points are interesting for two reasons: (a) they reveal which surfers are over- or under-valued by a points-based system vs. an opponent-adjusted system, and (b) if the betting market prices based on WSL ranking rather than true skill (as proxied by Elo), the divergence cases are exactly where the model is most likely to find edge.
+
 ### 8.5b — NXTbets Blog Odds MVP Comparison (If Available)
 
 If you extracted odds data from NXTbets blog posts (identified in Phase 1.3), this is where you use it. Take the specific surfers and events covered in those blog posts, generate predictions from the model for those same heats/events, and compare your model's implied probabilities against the NXTbets-published odds. This is a small sample and shouldn't be over-interpreted, but it gives you an early directional signal: is the model in the same universe as the betting market, or is it wildly off? If the model's probabilities diverge significantly from the market, that's either evidence of potential edge or evidence of a model problem — and you need to reason carefully about which.
@@ -885,6 +895,8 @@ Don't just measure performance — understand the errors. When the model gets it
 **Exchange vs. sportsbook tradeoffs:** Exchanges charge a commission on winnings but don't limit winners. Sportsbooks offer potentially better odds but will limit you if you win consistently. Understand this tradeoff and design your strategy accordingly.
 
 **Bet timing:** Odds change over time. When should you place your bet — early (when your model might have an edge over an immature line) or late (when you have more information)? This has implications for both profitability and detection risk.
+
+**Fantasy draft / total surfer value markets (from Phase 0):** Research whether fantasy surf markets exist with real-money stakes (e.g., WSL Fantasy Surfer, third-party platforms). If the model identifies surfers whose "total event value" (expected points across all rounds) is systematically underpriced relative to their draft position or fantasy cost, this could be a lower-risk, higher-volume application. This is a secondary monetization path, not a replacement for direct betting.
 
 ### 9.5 — Simulation Plan
 
@@ -1115,7 +1127,7 @@ A living document that lists every assumption the system depends on. Examples: "
 
 ### Versioning Strategy
 
-All project artifacts are managed via Git (GitHub username: `cowabungasurfbetco`). The repository should contain: all code (ETL, feature engineering, modeling, betting algorithm), configuration files, this plan document, the Phase 0 domain reference, the decision log, and the assumptions register. Data files that are too large for Git should be tracked via Git LFS or stored externally with version-stamped filenames and referenced in the repository. Trained model files should be versioned with clear naming (e.g., `model_v3_2026-03-15.pkl`) and the training data hash or version should be recorded alongside each model version. When you retrain or change anything, commit with a descriptive message. This lets you answer: "I changed X, and performance changed — was it because of X, or something else?"
+All project artifacts are managed via Git (repository: `github.com/cowabungasurfbetco/cowabunga`). The repository should contain: all code (ETL, feature engineering, modeling, betting algorithm), configuration files, this plan document, the Phase 0 domain reference, the decision log, and the assumptions register. Data files that are too large for Git should be tracked via Git LFS or stored externally with version-stamped filenames and referenced in the repository. Trained model files should be versioned with clear naming (e.g., `model_v3_2026-03-15.pkl`) and the training data hash or version should be recorded alongside each model version. When you retrain or change anything, commit with a descriptive message. This lets you answer: "I changed X, and performance changed — was it because of X, or something else?"
 
 ### "What Could Go Wrong" Checklist
 
