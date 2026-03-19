@@ -47,39 +47,6 @@ A core principle: **every phase should produce an artifact you can inspect** —
 
 ---
 
-## What You Listed vs. What I've Added
-
-Before diving into the phases, here's an honest accounting of what you already identified and what I'm recommending you add, along with why.
-
-**Phases you identified that map directly to the plan:**
-Data Collection, Data Quality Checks (cross-cutting), Model Build, Model Testing, and Betting Algorithm. These are all here, some split into sub-phases for additional gate opportunities.
-
-**Phases I'm adding that you didn't mention:**
-
-**Phase 0 — Domain & Viability Assessment.** This is arguably the most important addition. Before you build anything, you need to answer: "Is the betting market for surf inefficient enough that a model could find edge?" If the market is efficient (meaning the odds already reflect all available information), then even a perfect model won't make money. You also need to deeply understand the sport's structure, because format changes over time (3-person heats to 2-person heats, introduction of Finals Day, mid-season cuts) create structural breaks in the data that can silently corrupt your model if you don't account for them.
-
-**Phase 1 — Data Landscape Audit.** Before designing an ETL pipeline, you need to know what data actually exists, how far back it goes, how complete it is, and what format it's in. This prevents the very common mistake of designing a schema around data you assume exists but doesn't. This is a research phase, not a building phase.
-
-**Phase 11 — Paper Trading.** This is a critical buffer between "the backtest looks good" and "I'm betting real money." You run the system live, making predictions and recording what bets it would place, but without any money at risk. This catches a whole category of problems that backtesting misses: data latency issues, odds that move before you can place a bet, events that get cancelled or restructured mid-competition, and the psychological element of whether you'll actually follow the system when it tells you to bet on something you disagree with.
-
-**Phase 12 — Micro Stakes.** Even after paper trading, the first real-money phase should use the minimum possible bet sizes. This is about catching platform-specific issues (bet rejection, odds discrepancies between what you see and what executes, withdrawal limits) with minimal financial exposure.
-
-**Cross-cutting elements I'm adding:**
-
-**Decision Log.** Every significant choice (which data source, which model, which features, which betting strategy) should be recorded with the reasoning at the time. When something goes wrong later, the decision log lets you trace back to where the chain broke instead of guessing. This also prevents re-litigating decisions you already made.
-
-**Assumptions Register.** Every phase involves assumptions — "this data source is reliable," "the scoring system hasn't changed," "historical odds reflect what was actually available." These should be explicitly written down and periodically re-validated. Many compounding errors come from assumptions that were true when made but silently became false.
-
-**Sensitivity Analysis.** At key decision points, you should test: "If this assumption is wrong by X%, how much does it change the outcome?" This tells you which assumptions matter most and deserve the most scrutiny.
-
-**Versioning Strategy.** We will use Git for version control. Repository: `github.com/cowabungasurfbetco/cowabunga` (set up and operational). Everything — raw data snapshots, feature engineering code, trained model artifacts, betting algorithm parameters, and this plan itself — will be version-controlled. When performance changes and you don't know why, Git history is how you figure it out.
-
-**The "Edge Decay" Problem.** Even if you find a profitable edge, edges in betting markets tend to shrink over time as markets become more efficient, betting platforms adjust, and other bettors find similar patterns. Your monitoring system needs to detect when your edge is eroding, not just when your model is drifting.
-
-**Platform Risk Management.** You raised this — the risk of getting limited or banned for winning too much. This isn't just a concern to note; it needs to be an active design constraint that influences your betting algorithm (bet sizing, frequency, platform diversification, whether exchange-based models are preferable to sportsbook models).
-
-**Re-Anchor Checks.** A system of periodic re-reads of this master plan and the Phase 0 domain reference document, placed at major phase transitions and at random points within longer phases. The purpose is to catch drift — situations where the current work has gradually departed from the agreed-upon principles, structure, or decisions without anyone noticing. When an agent or you perform a re-anchor check, the specific action is: re-read this document, re-read the Phase 0 domain reference, compare current work to the plan, and flag any discrepancies. If discrepancies are found, stop and discuss before continuing.
-
 ---
 
 <a name="phase-0"></a>
