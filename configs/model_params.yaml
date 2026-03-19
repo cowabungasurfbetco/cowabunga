@@ -1,0 +1,17 @@
+# Model Hyperparameters
+# Populate during Phase 6-7 (Model Research, Build & Training)
+
+elo:
+  starting_rating: 1500
+  k_factor_new: 32       # surfers with < N rated heats
+  k_factor_established: 16
+  k_threshold_heats: 30  # heats before transitioning from new to established K
+  # TODO: tune these empirically during Phase 6
+
+# glicko2:
+#   initial_rd: 350
+#   initial_volatility: 0.06
+#   tau: 0.5
+
+# model:
+#   type: TBD  # Phase 6 decision

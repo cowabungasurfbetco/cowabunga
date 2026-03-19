@@ -1,0 +1,45 @@
+# Data - raw and processed are too large for git
+# Commit samples only (data/samples/)
+data/raw/
+data/processed/
+
+# Model artifacts (large binary files)
+artifacts/*.pkl
+artifacts/*.joblib
+artifacts/*.h5
+artifacts/*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# LibreOffice lock files
+.~lock.*
+
+# Temp files
+*.tmp
+*.bak

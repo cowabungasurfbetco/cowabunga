@@ -1,0 +1,9 @@
+# WSL Championship Tour Venue Configuration
+# Populate during Phase 1 (Data Landscape Audit) with:
+# - Break type (reef, beach break, point break, slab)
+# - Wave direction (left, right, both)
+# - Nearest buoy ID(s) for condition data
+# - Typical swell window and season
+# - Historical event names and years held
+
+venues: []
