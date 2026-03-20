@@ -148,6 +148,26 @@ This is a fundamentally different problem than the core plan. The prediction mod
 
 The core plan (use a model to find edge and place bets) shouldn't change regardless of which platform path you take — but the go-to-market strategy and the Phase 11–12 execution steps would need significant revision if you're creating markets rather than betting into existing ones.
 
+### 0.4c — Data Acquisition Cost Landscape
+
+Before committing to data sources, produce a cost assessment covering all data that requires payment, subscription, or significant effort to obtain. The goal is to set a data acquisition budget and make deliberate cost-benefit decisions rather than discovering costs mid-project.
+
+**For each potential paid data source, document:**
+- What it costs (subscription tier, one-time purchase, API call pricing)
+- What it provides that free alternatives don't
+- Whether the incremental data quality or coverage justifies the cost for this project's goals
+
+**Specific sources to evaluate:**
+- **Surfline premium:** Historical observations, forecast data, and cam archives. The key question is whether Surfline's onshore wave observations (as opposed to buoy data from NOAA, which is free) are precise enough and historically deep enough to meaningfully improve condition-based features. If Surfline data only marginally improves on what can be derived from free NOAA buoy readings matched to WSL heat reports, it's not worth the subscription.
+- **NOAA buoy data:** Free. Historical archives available. This should be the default condition data source unless a clear case exists for paid alternatives.
+- **Odds data providers:** Are there paid services that archive historical surf betting odds? What do they cost? How far back do they go?
+- **WSL data access:** Is there a paid tier or partnership pathway for structured competition data beyond what's publicly available on the website?
+- **Video/footage access:** If the video analysis workstream (see separate scoping document) is pursued, what would footage access cost?
+
+**Decision framework:** Default to free data sources (NOAA, public WSL results, manually collected odds). Only invest in paid sources if the analysis in Phase 5 (feature engineering) reveals that a specific paid data source would fill a gap that free data cannot, AND the cost is proportionate to the project's expected betting bankroll. A $200/year Surfline subscription is trivial relative to a $5,000 bankroll; a $5,000/year data service is not.
+
+**Deliverable:** A one-page cost landscape table listing each data source, its cost, free alternatives, and a recommendation (use free alternative / defer decision to Phase 5 / purchase now). Record the total data acquisition budget in the Decision Log.
+
 ### Phase 0 Gate
 
 🔴 **HUMAN GATE:** Before proceeding, you should have written answers to these questions:
@@ -158,7 +178,9 @@ The core plan (use a model to find edge and place bets) shouldn't change regardl
 4. What platforms are available, and what constraints do they impose? If platforms are limited, has the market creation contingency (0.4b) been evaluated?
 5. Do I understand how odds are generated for surf, and does that understanding point to specific types of inefficiency?
 6. Is the causal graph drafted, with confounders and multicollinearity pre-flagged?
-7. Am I still motivated to continue given what I've learned?
+7. For each circuit (men's and women's), is there evidence that a betting market exists or is likely to exist? If odds are only available for one circuit, that circuit should be prioritized for modeling; the other should be flagged as a data-collection-only effort until market evidence emerges.
+8. Has the cost landscape assessment been completed, and is the data acquisition budget defined?
+9. Am I still motivated to continue given what I've learned?
 
 If the answer to #2 is "no" or "I can't tell," that's not necessarily a deal-breaker — but you should acknowledge you're proceeding on faith rather than evidence, and set a hard stop at Phase 10 where you'll re-evaluate.
 
@@ -208,16 +230,7 @@ For each source, before committing to use it, evaluate:
 
 **Reliability:** Is this an official source or a fan-compiled dataset? How many errors should you expect?
 
-**Video data — a planned future data source:** Competition video is a potentially rich data source that is unlikely to be captured in structured datasets. Before dismissing it as too expensive or complex, identify what video-derivable features might be valuable and not available from any other source. Candidates include: paddling strength/fitness (how quickly a surfer paddles into waves — a proxy for physical condition), wave selection patterns (does a surfer tend to pick off smaller, safer waves or wait for bigger, riskier ones?), riding style classification (cautious vs. aggressive, aerial-focused vs. power-focused, signature moves), positioning and priority strategy (how a surfer uses the priority system tactically), and the time between waves (which could indicate fatigue or strategic patience). The plan for video is not to build a computer vision pipeline now, but to: (a) catalog what video-derived features would be most valuable, (b) determine how much video would be needed for a representative sample (likely a set of heats per surfer across multiple wave types, not exhaustive footage), (c) determine whether timestamp markers exist for each wave within a heat's video recording (this would dramatically reduce the amount of video that needs to be reviewed by pinpointing exactly when each wave occurs), and (d) scope the effort as a potential Phase 5b sub-project for manual or semi-automated feature extraction. This keeps the door open without derailing the current plan.
-
-**Video analysis — aerial risk/reward sub-workstream:** Within the video analysis scope, aerial maneuvers deserve specific, dedicated attention due to a hypothesized asymmetric risk/reward profile (higher scores when completed, but lower completion rates than traditional maneuvers). If this hypothesis is confirmed during Phase 0 research, scope a video analysis workstream to capture:
-
-- **Per-surfer aerial propensity:** How often does each surfer attempt airs in competition? This is a proxy for style and risk appetite.
-- **Per-surfer aerial completion rate:** A surfer who attempts airs frequently but lands only 30% is a different risk profile than one who attempts rarely but lands 70%.
-- **Condition-dependent aerial viability:** Airs may be more feasible in certain wave types (open-face, lighter winds) and less in others (heavy barrels, strong onshore). The interaction between surfer aerial propensity and condition suitability could be a powerful predictive feature.
-- **Women's vs. men's aerial gap:** Investigate whether aerial frequency differs significantly between circuits, and whether any gap is converging over time.
-
-This is a standalone workstream because it requires video review (airs aren't tagged in structured data) and should be scoped incrementally: start with 50-100 heats across a range of surfers and conditions, classify each wave as aerial attempt or traditional, record completion, and build the per-surfer aerial profile. This is labor-intensive but is precisely the kind of data that the market (ALT Sports Data, generic oddsmakers) is unlikely to incorporate — making it a candidate for genuine edge.
+**Video data — a planned future data source:** Competition video is a potentially rich data source unlikely to be captured in structured datasets. Video-derivable features (wave selection patterns, riding style classification, aerial propensity/completion rates, priority strategy, fatigue indicators) could represent genuine edge if the market doesn't incorporate them. This is not part of the core plan but is scoped as a potential Phase 5b sub-project. See the separate Video Analysis Scoping Document (`plan/video_analysis_scoping.md`) for the detailed workstream design, including aerial risk/reward analysis, per-surfer profiling approach, and effort estimates.
 
 **Data scarcity acknowledgment:** Surfing analytics is a much less developed field than analytics for major team sports. Expect data to be scarce, inconsistently formatted, and spread across many small sources. The research posture for this step should be to scour far and wide — niche surf forums, academic theses from sports science programs, surf coaching platforms, fantasy surf league data, international surfing association archives, and historical competition programs/media guides. Don't assume that because a centralized database doesn't exist, the data itself doesn't exist somewhere.
 
@@ -265,7 +278,7 @@ If the answer to #1 is "no," the project may not be viable in its current form. 
 
 ### 2.0 — Git Repository Setup
 
-✅ **COMPLETED:** The project repository is set up at `github.com/cowabungasurfbetco/cowabunga` (private). Branching convention: `main` for stable/reviewed work, `dev` for active development, feature branches for specific phases (e.g., `feature/phase-3-pilot-etl`). All code, configuration, data schemas, and documentation are version-controlled from this point forward.
+Set up the project Git repository at `github.com/cowabungasurfbetco/cowabunga` (private). Establish branching convention: `main` for stable/reviewed work, `dev` for active development, feature branches for specific phases (e.g., `feature/phase-3-pilot-etl`). All code, configuration, data schemas, and documentation should be version-controlled from this point forward.
 
 ### 2.1 — Entity-Relationship Design
 
@@ -502,9 +515,11 @@ This monitoring protocol should be written into Phase 13 (Ongoing Monitoring) as
 
 🔴 **HUMAN GATE:** Review the edge map. If ALT's model appears to already price the primary factors you were counting on for edge, this is a decision point: either identify alternative edge sources, accept a smaller edge, or reconsider the project's expected returns. Update the scenario model (Excel workbook) with revised edge assumptions if needed.
 
+🔵 **RE-ANCHOR CHECK (post-5.0c):** Re-read the Phase 0 causal graph and the edge map produced in 5.0c. The feature engineering that follows should be explicitly prioritized by the edge map: features corresponding to factors ALT does NOT price should receive the most engineering attention, because those are where genuine edge exists. Features corresponding to factors ALT already prices should still be built (for model accuracy) but are not edge sources. If the 5.0c reconstruction revealed that ALT's model is more sophisticated than hypothesized, re-evaluate whether the remaining edge surface is large enough to justify continued feature engineering effort — this may be a project viability decision point.
+
 ### 5.1 — Feature Candidate Generation
 
-Using your Phase 0 hypotheses as a roadmap, generate candidate features. Organize them by category:
+Using your Phase 0 hypotheses as a roadmap — and the edge map from 5.0c as a prioritization guide — generate candidate features. Organize them by category:
 
 **Surfer form features:** Win rate (career, last N events, last N heats), average heat score, score variance, podium rate, trend (improving vs. declining form). Think carefully about the lookback window — too short and you get noise, too long and you miss form changes.
 
@@ -598,6 +613,7 @@ Specific design choices:
 - **Recency weighting:** Should older results decay? If so, at what rate?
 - **3-person heat handling:** For pre-2019 data, how to credit a 2nd-place finish? Options: treat as half-win (0.5), treat as loss (0), or use a 3-player Elo extension.
 - **Glicko-2 alternative:** Glicko-2 adds rating deviation (confidence interval) and volatility (how erratic the surfer is). This naturally handles inactivity and may be worth implementing alongside basic Elo for comparison.
+- **2026 priority-era adjustment:** The 2026 format grants starting priority based on seeding (which derives from rankings). This means outcomes are now partly determined by priority status — a confound that pure Elo doesn't account for. Design choices to resolve: (a) Should the Elo update discount losses by a surfer who didn't have priority (i.e., adjust the K-factor or expected outcome based on priority status, so that losing without priority penalizes the Elo rating less than losing with priority)? (b) Should priority be modeled as a separate adjustment layer on top of Elo (a "priority advantage" parameter estimated from historical data where priority information is available, applied as an additive or multiplicative modifier to the Elo-derived win probability)? (c) For pre-2026 data where priority assignment rules were different, how should the Elo system treat that era — ignore priority entirely (since it wasn't seeding-determined), or attempt to estimate priority effects from heat-by-heat data if available? The recommended approach is (b): keep Elo as a "pure skill" estimate and model priority as a separate covariate, so that the Elo system remains interpretable as "how good is this surfer, opponent-strength-adjusted" without being contaminated by structural advantages. The priority adjustment then becomes a feature in the broader prediction model (Phase 7) rather than baked into Elo itself. Document the choice and its implications in the Decision Log.
 
 **Logistic regression:** Predict heat outcome as a binary variable from features. Strengths: highly interpretable, produces calibrated probabilities naturally, fast, easy to understand coefficients. Weaknesses: assumes linear relationships between features and log-odds, may miss complex interactions.
 
@@ -1147,6 +1163,7 @@ This is a master list of all re-anchor checks in the plan, for easy reference:
 | Start of Phase 3 | Phase 0 domain reference + Phase 2 schema | Pilot exercises all schema entities |
 | Phase 4 → Phase 5 transition | Phase 0 causal graph + Assumptions Register | Hypothesized variables vs. actual data |
 | Start of Phase 5 | Phase 0 causal graph | Features map to causal nodes |
+| Post-Phase 5.0c | Phase 0 causal graph + 5.0c edge map | Feature prioritization matches edge surface; viability re-check if ALT model is sophisticated |
 | Phase 6 start | Phase 0 causal graph + Phase 5 features | Model handles required causal structure |
 | Phase 7 gate | Phase 0 + Phase 5 + Phase 6 decisions | Model behavior matches expectations |
 | Mid-Phase 10 (random) | Full master plan | Strategy still matches plan |
