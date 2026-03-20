@@ -248,7 +248,11 @@ This is often the hardest data to find for niche sports. Specifically determine:
 
 **NXTbets blog odds as MVP seed data.** Investigate whether NXTbets or similar surf betting blogs have published odds in their content. Even if not comprehensive, these could provide enough data points for an MVP-level exercise: take the surfers and odds mentioned in those blogs, generate predictions from the model, and compare. This gives you an early, rough signal on whether the model's probability estimates are in the right ballpark relative to the market's — long before you have a full odds dataset. Plan this as an explicit early validation step in Phase 8 (Model Testing), where a small set of predictions is compared against NXTbets-derived odds.
 
-**Live event calibration cycle.** Because historical odds are likely limited, plan for a series of live event validation cycles: for each upcoming event where odds are available, the model generates pre-event predictions, actual odds are recorded, the event plays out, and results are compared. This isn't paper trading yet (Phase 11) — it's model calibration. You'll likely need several events (perhaps 3–5 at minimum) to have a meaningful calibration sample, so this should begin as early as possible. Acknowledge that this introduces a time dependency into the project — you can't rush this step, because events happen on the WSL's schedule, not yours.
+**Live event calibration cycle (primary validation pathway).** Because forward-collected odds are the primary odds dataset, model validation will necessarily happen against live events as odds accumulate — not against a deep historical archive. This is not a contingency or alternative approach; it is the expected default given the data constraints. The cycle works as follows: for each upcoming event where odds are available, the model generates pre-event predictions, actual odds are captured via the Live Event Odds Pipeline, the event plays out, and results are compared against both the model's predictions and the market's implied probabilities.
+
+**Critical methodological discipline:** This cycle creates a temptation to retune the model after each event based on results. Do not do this. The required protocol is strict temporal separation: build the model on all data up to event N, **freeze it completely** (no parameter changes, no feature additions, no retraining), predict event N+1 against live odds, and record the result. Do not modify the model based on a single event's outcomes. Accumulate results across at least 3–5 events of frozen-model predictions before drawing any conclusions about model quality or making changes. This discipline is difficult to maintain when results are coming in and the temptation to iterate is strong, but without it you cannot distinguish genuine model performance from in-sample fitting on a rolling basis.
+
+You will likely need 3–5 events at minimum for a meaningful calibration sample, so this should begin as early in the project as possible. Acknowledge that this introduces a time dependency — you can't rush this step, because events happen on the WSL's schedule, not yours. The accumulation period also serves double duty: the same odds being collected for calibration feed into Phase 10 (backtesting) once the dataset is large enough.
 
 ### 1.4 — Gap Analysis
 
@@ -886,7 +890,7 @@ Don't just measure performance — understand the errors. When the model gets it
 
 ### 9.5 — Simulation Plan
 
-Before implementing the betting algorithm, design the simulation you'll run in Phase 10. Define: what historical period will you simulate? How will you model odds availability? What metrics will you track (total P&L, ROI, max drawdown, Sharpe ratio, number of bets, win rate)? How many Monte Carlo iterations will you run?
+Before implementing the betting algorithm, design the simulation you'll run in Phase 10. The simulation should be designed around the odds data you actually have — primarily forward-collected odds from the Live Event Odds Pipeline, possibly supplemented by NXTbets blog data or any historical odds discovered in Phase 1. Define: which events have paired model-predictions and real odds? How many heat-level observations does that give you? What metrics will you track (total P&L, ROI, max drawdown, Sharpe ratio, number of bets, win rate)? How many Monte Carlo iterations will you run? If the available odds dataset is small (fewer than 5 events), how will you adjust the simulation design to avoid over-fitting conclusions to a thin sample?
 
 ### Phase 9 Gate
 
@@ -904,11 +908,15 @@ Before implementing the betting algorithm, design the simulation you'll run in P
 <a name="phase-10"></a>
 ## Phase 10: Betting Strategy Backtesting & Simulation
 
-**Purpose:** Test the betting strategy on historical data to estimate realistic long-term performance.
+**Purpose:** Test the betting strategy against real odds data to estimate realistic long-term performance.
 
-### 10.1 — Historical Backtesting
+**Data reality acknowledgment:** The backtesting dataset will most likely be composed primarily of forward-collected odds from the Live Event Odds Pipeline, not a deep historical archive. This means the "backtest" period may span only a handful of CT events rather than multiple years. This constraint has important implications: confidence intervals on performance metrics will be wider, Monte Carlo simulation (10.2) becomes even more critical for understanding outcome distributions, and the temptation to over-read a small sample must be actively resisted. The Phase 10 gate questions should be answered with appropriate humility about sample size. If only 2–3 events of odds data are available, this phase should focus on whether results are directionally consistent with the model's expected edge rather than demanding statistical significance — and the gate decision should reflect that uncertainty honestly.
 
-Using the model's out-of-sample predictions from Phase 8 and historical odds (if available) or simulated odds, run the full betting algorithm over the historical period.
+**Minimum data threshold for Phase 10:** Do not attempt a formal backtest with fewer than 3 events' worth (~240+ heats) of paired model-predictions and real odds. Below that threshold, any performance metrics are noise. If you reach Phase 10 before accumulating sufficient odds data, pause here and continue collecting via the Live Event Odds Pipeline until the threshold is met. Use the waiting period to refine the simulation plan (Phase 9.5) and prepare the analysis infrastructure.
+
+### 10.1 — Backtesting Against Collected Odds
+
+Using the model's out-of-sample predictions from Phase 8 and real odds data (forward-collected from the Live Event Odds Pipeline, supplemented by any historical odds that were found), run the full betting algorithm over the available odds dataset.
 
 Track per-bet: date, event, heat, surfer, model probability, implied probability from odds, edge, stake amount, outcome, profit/loss.
 
@@ -934,9 +942,9 @@ Vary key parameters and observe the impact:
 
 **Minimum edge threshold:** What happens when you only bet on high-confidence picks (high edge threshold) vs. betting on anything with positive expected value (low threshold)?
 
-### 10.4 — Multi-Year Performance Analysis
+### 10.4 — Per-Event Performance Analysis
 
-Don't just look at the aggregate. Break performance down by year, by event, by bet type (heat vs. event), and by confidence level. Look for: years where the strategy would have lost money (and understand why), bet types where the edge is concentrated, and whether performance is consistent or lumpy.
+Don't just look at the aggregate. Break performance down by event, by bet type (heat vs. event winner vs. podium), and by confidence level. Look for: events where the strategy would have lost money (and understand why — were conditions unusual? did a major upset occur?), bet types where the edge is concentrated, and whether performance is consistent across events or driven by a small number of outlier bets. If the odds dataset spans multiple years, also break down by year. Given that the dataset may initially span only a partial season, be cautious about over-interpreting event-to-event variance — a losing event does not invalidate the model, and a winning event does not validate it.
 
 ### Phase 10 Gate
 
@@ -946,7 +954,7 @@ Don't just look at the aggregate. Break performance down by year, by event, by b
 2. Is the maximum drawdown within my tolerance?
 3. Is the probability of ruin acceptably low (< 5% ideally)?
 4. Does the Monte Carlo simulation show profitability in the majority (>60%) of scenarios?
-5. Is performance reasonably consistent across years, or was it driven by a small number of outlier bets?
+5. Is performance reasonably consistent across events, or was it driven by a small number of outlier bets? (If the dataset spans only a partial season, acknowledge the limited sample honestly.)
 6. Does the sensitivity analysis show the strategy is robust to reasonable parameter variation?
 7. **Am I willing to risk real money on this, with full understanding that past performance may not repeat?**
 
@@ -1251,20 +1259,6 @@ This is a master list of all re-anchor checks in the plan, for easy reference:
 | Annually during Phase 13 | Full master plan | System matches plan intentions |
 
 Additional ad-hoc re-anchor checks should be triggered whenever something "feels off" — unexpected results, surprising feature importances, or any situation where the current work seems disconnected from the original reasoning.
-
----
-
-## Appendix D: Alternative Approach — Compressed Live-Testing Cycle
-
-**Status:** Documented for reference. Not the current plan, but available if the standard backtest approach (Phases 8–10) hits walls due to insufficient historical odds data.
-
-**Concept:** Rather than building the model, backtesting on historical data (where odds are unavailable), and then paper trading, compress the cycle by testing candidate models against live events as they happen using forward-collected odds. The sequence would be: build multiple candidate models on historical competition data (results, features) → for each upcoming event, generate pre-event predictions from each model → record the live odds as they're posted → after the event, compare each model's predicted probabilities against the actual odds and outcomes → accumulate results across several events to identify which model approach produces the most consistently positive expected value.
-
-**Why this might be needed:** The standard Phase 8–10 sequence assumes you have historical odds to backtest against. If forward odds collection is the primary odds dataset (as expected), you won't have enough data for a full backtest until you've collected several events' worth — and during that collection period, the models are sitting idle. The compressed approach uses that waiting period productively by testing models live (without money) as odds are collected.
-
-**Why it's not the default approach:** It conflates model development with model validation. If you tune model parameters based on how well they predicted the last event's outcomes relative to the odds, you risk in-sample fitting on a rolling basis. The mitigation is strict temporal separation: build the model on all data up to event N, freeze it completely, predict event N+1 against live odds, record the result, and do NOT retune the model based on that single event. Collect several events (3–5 minimum) of frozen-model predictions before drawing any conclusions. This discipline is difficult to maintain when results are coming in and the temptation to iterate is strong.
-
-**When to activate:** If, after 3+ events of forward odds collection, the standard backtest pathway still doesn't have enough odds data for a statistically meaningful simulation (Phase 10), pivot to this approach as the primary validation method.
 
 ---
 
