@@ -76,7 +76,7 @@ Research and document the following. The output should be a written reference do
 
 **Elo and rankings — a separate but related system:** The WSL ranking system (which determines tour qualification, seedings, and jersey assignments) is related to but distinct from the wave scoring system. Research and document how the WSL ranking points system works: how points are awarded per event based on finishing position, how the season standings are calculated, whether there's an official Elo-like system or just cumulative points, and how the ranking system has changed over time. This matters because rankings influence seedings (which affect who faces whom in early rounds), and because rankings/points pressure may be a feature in the model (a surfer fighting for qualification has different incentives than one already safely qualified). Note: "Elo" in the context of this project will also refer to our own Elo rating system built during modeling (Phase 6), which is distinct from the WSL's official ranking system. Be precise about which system is being referenced at all times to avoid confusion.
 
-**WSL CT Ranking Points Table:** Research and compile the complete ranking points table from the official WSL Rule Book, covering all finishing positions from winner through last-place elimination. Document how points have changed across eras, whether men's and women's events award identical points, and specifically how the 2026 format handles points (any multipliers, Finals Day elimination, etc.). Confirm all values against the official 2026 WSL Rule Book (Appendix B). The compiled table belongs in the Phase 0 output document.
+**WSL CT Ranking Points Table:** Research and compile the complete ranking points table from the official WSL Rule Book, covering all finishing positions from winner through last-place elimination. Document how points have changed across eras, whether men's and women's events award identical points, and specifically how the 2026 format handles points (any multipliers, Finals Day elimination, etc.). Confirm all values against the official 2026 WSL Rule Book (available from the WSL website or competition officials). The compiled table belongs in the Phase 0 output document.
 
 **Ranking feedback loop:** Rankings influence seedings, which influence matchups, which influence outcomes, which influence rankings — a feedback loop that creates endogeneity. This must be addressed during modeling (Phases 5-6) through approaches such as using Elo as the primary skill variable instead of rankings, instrumental variables, or within-event detrending.
 
@@ -114,7 +114,11 @@ The purpose of writing these down first is to prevent the data from "telling" yo
 
 ### 0.2b — Understand How Surf Betting Odds Are Generated
 
-This is a distinct sub-step because understanding how odds are set is essential for knowing where inefficiency might exist. Research and document: how do sportsbooks set their surf odds? Is it primarily driven by a surfer's ranking or Elo-equivalent? Is there a human oddsmaker making qualitative judgments? How much does public betting action move the line? Are the odds set by a sophisticated model, or are they relatively crude? Understanding the odds-generation process tells you where the market's "blind spots" are likely to be — for example, if odds are primarily rank-based, a model that incorporates conditions and matchup effects might find edge in situations where a lower-ranked surfer is actually favored by the conditions. Conversely, if the oddsmaker already incorporates conditions, that particular angle may not provide edge. This sub-step directly informs Phase 9 (Betting Algorithm Research) and should be documented as part of the Phase 0 reference.
+This is a distinct sub-step because understanding how odds are set is essential for knowing where inefficiency might exist. Research and document: how do sportsbooks set their surf odds? Is it primarily driven by a surfer's ranking or Elo-equivalent? Is there a human oddsmaker making qualitative judgments? How much does public betting action move the line? Are the odds set by a sophisticated model, or are they relatively crude?
+
+**Identify the upstream odds provider.** Niche sports markets are often supplied by a single centralized odds provider (e.g., ALT Sports Data is one such provider known to supply odds to multiple betting platforms for niche sports). Determine: who is the primary odds provider for surf betting? Do multiple platforms receive their odds from the same upstream source? If so, understanding that single provider's model is more valuable than analyzing each platform independently — because beating the source model beats all platforms simultaneously. The specific provider identified here becomes the target for the market model reconstruction in Phase 5.0c. If the provider cannot be identified, Phase 5.0c will target the most liquid platform's odds as a proxy.
+
+Understanding the odds-generation process tells you where the market's "blind spots" are likely to be — for example, if odds are primarily rank-based, a model that incorporates conditions and matchup effects might find edge in situations where a lower-ranked surfer is actually favored by the conditions. Conversely, if the oddsmaker already incorporates conditions, that particular angle may not provide edge. This sub-step directly informs Phase 9 (Betting Algorithm Research) and should be documented as part of the Phase 0 reference.
 
 ### 0.3 — Assess Market Efficiency
 
@@ -127,6 +131,8 @@ This is the viability question. Research and think carefully about:
 **What is the vig/juice?** The sportsbook's margin (the difference between true probability and implied probability from odds) is the hurdle your model must clear. If the vig is 10%, your model needs to be more than 10% better than the market to break even.
 
 **Are there specific bet types where edge is more likely?** Heat-winner bets might be more efficient (more attention, simpler market) than outright tournament winner bets or podium bets, or vice versa. Understanding where the market is "thinnest" helps you focus.
+
+**Scenario model workbook (Phase 0 deliverable):** As part of the viability assessment, create an Excel workbook modeling potential betting ROI under different edge assumptions (e.g., 2% edge, 4% edge, 6% edge over the market) combined with different bet volumes (50 bets/year, 100 bets/year, 200 bets/year) and different vig levels. This workbook should produce projected bankroll growth paths, break-even thresholds, and ruin probabilities for each scenario. It serves two purposes: (a) it forces a concrete answer to "is this worth doing?" before any modeling work begins, and (b) it becomes a living document that gets updated at key gates — Phase 5.0c (when the edge map refines edge assumptions), Phase 8 (when model accuracy is known), and Phase 10 (when backtesting produces actual simulated P&L). Store in `outputs/phase_0/`.
 
 ### 0.4 — Platform Landscape Assessment
 
@@ -473,9 +479,13 @@ These visualizations should be reviewed before proceeding to feature engineering
 
 🔴 **HUMAN GATE:** Review the hypothesis visualizations. Do the data patterns align with the causal hypotheses? Are there surprising patterns that suggest new hypotheses? Are there hypotheses that the data clearly contradicts? Update the causal graph as needed before proceeding.
 
-### 5.0c — Market Model Reconstruction: Reverse-Engineering ALT Sports Data's Pricing Function
+**⚠️ TIMING NOTE — Phase 5 is not fully sequential.** Sections 5.0a and 5.0b execute immediately after Phase 4 using competition results data. Section 5.0c below requires forward-collected odds data (≥150 heat-level observations from ≥2 CT events), which may not yet exist. If the odds dataset has not reached this threshold when you complete 5.0b, proceed as follows: (a) skip 5.0c for now and continue to Phases 5.1 through 5.5, engineering features based on the Phase 0 causal hypotheses and the 5.0b visualizations; (b) continue through Phases 6–8 using this preliminary feature set; (c) when the odds threshold is reached (the Live Event Odds Pipeline will signal this), execute 5.0c, produce the edge map, and re-prioritize feature engineering effort accordingly — this may trigger a partial re-run of Phases 5.1–5.5 and downstream phases if the edge map reveals that the market already prices factors you invested heavily in. This is an expected part of the project timeline, not a failure. The Live Event Odds Pipeline runs in parallel throughout; every CT event adds ~80+ observations. Budget 2–5 months for odds accumulation depending on the WSL calendar.
 
-**Purpose:** Before engineering features for *our* model, understand what the *market's* model is already pricing. If ALT's odds-setting model is simple (primarily rank-based), then the gap between what they price and what actually drives outcomes defines our edge surface. If their model is sophisticated, the edge surface is smaller and we need to know that early.
+### 5.0c — Market Model Reconstruction: Reverse-Engineering the Odds Provider's Pricing Function
+
+**Purpose:** Before engineering features for *our* model, understand what the *market's* model is already pricing. If the odds provider's model is simple (primarily rank-based), then the gap between what they price and what actually drives outcomes defines our edge surface. If their model is sophisticated, the edge surface is smaller and we need to know that early.
+
+**Terminology note:** Throughout this section, "ALT" refers to the upstream odds provider identified in Phase 0.2b. ALT Sports Data is the hypothesized provider based on preliminary research (they are known to supply odds to multiple platforms for niche sports), but the actual provider name should be confirmed during Phase 0.2b and substituted here. If Phase 0.2b identifies a different provider, or determines that multiple independent providers exist, adjust this section accordingly. If no single upstream provider can be identified, target the most liquid platform's odds as a proxy.
 
 **Why this matters strategically:** Every feature we engineer needs to add information *beyond what the market already knows.* If ALT already incorporates venue history, then our venue-familiarity features aren't adding edge — they're just matching the market. But if ALT is using rankings plus a thin recency adjustment and nothing else, then condition-surfer interactions, venue-specific performance, aerial propensity, and priority effects are all potential edge vectors the market is blind to. This step tells us where to aim.
 
@@ -483,7 +493,7 @@ These visualizations should be reviewed before proceeding to feature engineering
 
 **Method:**
 
-1. **Assemble the dataset:** For every heat where ALT-sourced odds are available (from the NXTbets odds collection in Phase 1 and any forward-collected odds), pair each surfer's implied probability (from the decimal odds) with their WSL ranking at that point in time, recent form metrics (last 3 events win rate, last event finish), head-to-head record against the specific opponent, and any other readily available surfer-level variables.
+1. **Assemble the dataset:** For every heat where odds are available (from the Live Event Odds Pipeline, supplemented by any NXTbets blog-sourced odds identified in Phase 1.3), pair each surfer's implied probability (from the decimal odds) with their WSL ranking at that point in time, recent form metrics (last 3 events win rate, last event finish), head-to-head record against the specific opponent, and any other readily available surfer-level variables.
 
 2. **Fit a simple reconstruction model:** Regress the implied probability against WSL ranking alone. Record the R². Then iteratively add variables — recent form, H2H record, venue history, seeding position — and track how much each addition improves R². The variable that produces the biggest R² jump after ranking is likely ALT's second most important input. If ranking alone yields R² > 0.85, the model is rank-dominant. If R² is < 0.65 with ranking alone, they're using more than just rankings.
 
@@ -632,7 +642,7 @@ Specific design choices:
 - **K-factor schedule:** Should K decay with number of rated heats (like Glicko's RD) or be fixed? Starting values: K=32 for new surfers, K=16 for established.
 - **Surface-type conditioning:** Should Elo be split by break type (reef Elo, beach break Elo, point break Elo)?
 - **Recency weighting:** Should older results decay? If so, at what rate?
-- **3-person heat handling:** For pre-2019 data, how to credit a 2nd-place finish? Options: treat as half-win (0.5), treat as loss (0), or use a 3-player Elo extension.
+- **3-person heat handling:** For pre-2019 data, how to credit a 2nd-place finish? Options: treat as half-win (0.5), treat as loss (0), or use a 3-player Elo extension. Recommended starting point: treat as half-win (0.5) for the baseline Elo system, since 2nd place in a 3-person heat demonstrably outperformed 3rd place and throwing away that information (treating it as a loss) discards useful signal. Test the 3-player extension as a comparison if time permits. Record the choice and sensitivity analysis in the Decision Log.
 - **Glicko-2 alternative:** Glicko-2 adds rating deviation (confidence interval) and volatility (how erratic the surfer is). This naturally handles inactivity and may be worth implementing alongside basic Elo for comparison.
 - **2026 priority-era adjustment:** The 2026 format grants starting priority based on seeding (which derives from rankings). This means outcomes are now partly determined by priority status — a confound that pure Elo doesn't account for. Design choices to resolve: (a) Should the Elo update discount losses by a surfer who didn't have priority (i.e., adjust the K-factor or expected outcome based on priority status, so that losing without priority penalizes the Elo rating less than losing with priority)? (b) Should priority be modeled as a separate adjustment layer on top of Elo (a "priority advantage" parameter estimated from historical data where priority information is available, applied as an additive or multiplicative modifier to the Elo-derived win probability)? (c) For pre-2026 data where priority assignment rules were different, how should the Elo system treat that era — ignore priority entirely (since it wasn't seeding-determined), or attempt to estimate priority effects from heat-by-heat data if available? The recommended approach is (b): keep Elo as a "pure skill" estimate and model priority as a separate covariate, so that the Elo system remains interpretable as "how good is this surfer, opponent-strength-adjusted" without being contaminated by structural advantages. The priority adjustment then becomes a feature in the broader prediction model (Phase 7) rather than baked into Elo itself. Document the choice and its implications in the Decision Log.
 
@@ -752,7 +762,7 @@ Why this gets a human gate: miscalibration is the single most dangerous model pr
 
 **The critical principle:** Sports data is time-ordered. Standard random train/test splits are invalid because they allow the model to "peek" at future data during training. You must use time-based splits.
 
-**Walk-forward validation (recommended primary approach):** Train on all data up to time T, predict the next event(s), then advance T and repeat. This mimics how the model would actually be used in practice — you always train on the past and predict the future. The downside is computational cost (you retrain many times), but for a dataset this size, that's not a problem.
+**Walk-forward validation (recommended primary approach):** Train on all data up to time T, predict the next event(s), then advance T and repeat. This mimics how the model would actually be used in practice — you always train on the past and predict the future. Advance T by one complete CT event: for each event N, train on all heats from events 1 through N−1, predict all heats in event N, record outcomes, then move to event N+1. This produces one test fold per event. The downside is computational cost (you retrain many times), but for a dataset this size, that's not a problem.
 
 **Expanding window vs. sliding window:** Expanding window (always train from the start) uses more data but may be diluted by outdated patterns. Sliding window (only train on the last N events) uses less data but captures recent trends better. Test both and compare.
 
@@ -827,6 +837,8 @@ Don't just measure performance — understand the errors. When the model gets it
 **Does it fail when an injury or form change happened that isn't in the data?** (Points to a feature gap.)
 
 **Does it fail differently for the men's vs. women's circuit?** (If modeling both, compare error patterns across circuits.)
+
+**How does it handle rookie surfers or surfers with limited history?** Surfers with fewer than ~5 historical heats in the dataset will have unreliable Elo ratings and sparse feature vectors. Measure the model's accuracy on these low-history surfers separately. If accuracy degrades significantly, determine whether predictions should be withheld (or flagged as low-confidence) for surfers below a minimum history threshold, and what that threshold should be.
 
 ### Phase 8 Gate
 
@@ -1165,10 +1177,10 @@ The next upcoming 2026 CT event is the trial run. Expectations:
 
 ### Integration with Other Phases
 
-- **Phase 5.0c (ALT reconstruction):** Defer until the forward-collected odds dataset reaches ~150+ heat-level observations (roughly 2 events). The odds pipeline is the gating dependency for 5.0c.
+- **Phase 5.0c (market model reconstruction):** Defer until the forward-collected odds dataset reaches ~150+ heat-level observations (roughly 2 events). The odds pipeline is the gating dependency for 5.0c.
 - **Phase 8 (Model Testing):** Forward-collected odds are the primary dataset for the NXTbets blog comparison (8.5b) and the broader model-vs-market evaluation.
 - **Phase 10 (Backtesting):** Forward-collected odds are expected to be the primary backtesting dataset. The simulation plan (Phase 9.5) should be designed around the available forward-collected data rather than assuming a deep historical archive.
-- **Phase 13 (Monitoring):** The odds pipeline transitions from "data collection" to "ongoing monitoring input" — it continues running during live deployment to feed the ALT model reconstruction monitoring protocol.
+- **Phase 13 (Monitoring):** The odds pipeline transitions from "data collection" to "ongoing monitoring input" — it continues running during live deployment to feed the market model reconstruction monitoring protocol.
 
 ---
 
