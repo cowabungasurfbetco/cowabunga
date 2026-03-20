@@ -212,7 +212,7 @@ For each source you find, document: what data it contains, how far back it goes,
 - Temporal resolution (hourly? every 30 minutes? daily averages?)
 - Spatial resolution (how far is the nearest buoy from the actual break?)
 
-**The buoy-to-shore calibration problem:** Buoy data measured offshore is not the same as what a surfer experiences at the break. Bottom contour, refraction, local wind, and tide all modify the wave between buoy and shore. During this audit, identify which buoys serve each WSL venue and assess the data quality and temporal resolution available. The actual calibration model is built in Phase 5.1b.
+**Buoy data as direct condition features:** Buoy data measured offshore is not identical to what a surfer experiences at the break, but rather than building a noisy intermediate calibration model, buoy readings will be used directly as model features (see Phase 5.1b). The model learns the buoy-to-performance relationship empirically per venue. During this audit, identify which NOAA buoys serve each WSL venue, assess their data quality and temporal resolution, and document their distance and swell-window alignment relative to each break.
 
 **Betting odds data:** Historical odds archives (odds-portal, oddsportal.com for surf), NXTbets if they have historical data, any other sources of what the odds were at the time of past events.
 
@@ -244,7 +244,7 @@ This is often the hardest data to find for niche sports. Specifically determine:
 
 **From which platforms?** Different platforms offer different odds on the same event. Understanding which platform's odds you're backtesting against matters.
 
-**Contingency plan: odds collection from upcoming events.** Historical odds for surf are likely sparse or nonexistent. If this proves true, the plan should include an intentional forward-looking odds collection phase: beginning with the next available WSL event, systematically capture odds as they are posted (from NXTbets, any sportsbooks, prediction markets) and track how they move over time. This creates a growing odds dataset that you can use for future backtesting, even if historical odds remain unavailable. Treat this as an ongoing parallel workstream that starts as soon as platforms with odds are identified in Phase 0.4.
+**Forward odds collection — the primary odds dataset (critical path).** Historical odds for surf are likely sparse or nonexistent. Therefore, forward-collected odds from upcoming events are expected to be the *primary* backtesting dataset, not a contingency. This workstream starts immediately upon identifying platforms in Phase 0.4 and runs continuously in parallel with all other phases. Beginning with the next available WSL CT event, systematically capture odds as they are posted (from NXTbets, any sportsbooks, prediction markets) and track how they move over time. Each CT event generates ~80+ heats across opening rounds, elimination rounds, and bracket stages — meaning each event adds 80+ heat-level odds observations. After 2 events (~160+ observations), the dataset becomes sufficient for an initial ALT model reconstruction attempt (Phase 5.0c). After 5 events (~400+ observations), confidence intervals tighten enough for robust analysis. The collection pipeline is detailed in the Cross-Cutting: Live Event Odds Pipeline section below. Treat this as one of the most time-sensitive workstreams in the entire project — every event where odds go uncaptured is lost data.
 
 **NXTbets blog odds as MVP seed data.** Investigate whether NXTbets or similar surf betting blogs have published odds in their content. Even if not comprehensive, these could provide enough data points for an MVP-level exercise: take the surfers and odds mentioned in those blogs, generate predictions from the model, and compare. This gives you an early, rough signal on whether the model's probability estimates are in the right ballpark relative to the market's — long before you have a full odds dataset. Plan this as an explicit early validation step in Phase 8 (Model Testing), where a small set of predictions is compared against NXTbets-derived odds.
 
@@ -259,7 +259,7 @@ After inventorying everything, explicitly document: what data do I wish I had bu
 🔴 **HUMAN GATE:** Review the data inventory and answer:
 
 1. Is there enough historical competition data (at least several seasons of heat-level results) to train a model?
-2. Is there condition data that can be matched to specific events/heats? If so, what's the plan for buoy-to-shore calibration?
+2. Is there condition data that can be matched to specific events/heats? Have the relevant NOAA buoys per venue been identified for direct buoy-condition features (Phase 5.1b)?
 3. Is there historical odds data, and if not, is the forward-looking odds collection plan in place?
 4. What's my "minimum viable dataset" — the smallest set of features that could plausibly predict outcomes — and can I actually obtain it?
 5. Have walled-garden data sources been flagged?
@@ -497,7 +497,7 @@ These visualizations should be reviewed before proceeding to feature engineering
 **Important caveats to document:**
 - This reconstruction approximates ALT's model; it doesn't reveal their actual code or methodology. The approximation is sufficient for our purposes (identifying priced vs. unpriced factors).
 - ALT can update their model at any time. The reconstruction should be re-run periodically (at minimum once per season, ideally after every 2-3 events) as an ongoing monitoring task during Phase 13 (Ongoing Monitoring).
-- Sample size will be limited, especially early on. The reconstruction's confidence intervals matter — a reconstruction based on 50 heats has wide uncertainty. Don't over-interpret small R² differences until you have 200+ observations.
+- Sample size will be limited, especially early on. The reconstruction's confidence intervals matter — a reconstruction based on 50 heats has wide uncertainty. Don't over-interpret small R² differences until you have 150+ observations (roughly 2 CT events of forward-collected odds). Defer the initial 5.0c reconstruction attempt until this threshold is reached.
 - If the reconstruction reveals ALT's model is MORE sophisticated than hypothesized (incorporating conditions, matchups, etc.), that's a critical finding that narrows the viable edge surface. This should trigger a re-evaluation of the project's viability at the Phase 5 gate.
 
 **Ongoing market model monitoring (Phase 13 integration):**
@@ -535,13 +535,30 @@ Using your Phase 0 hypotheses as a roadmap — and the edge map from 5.0c as a p
 
 **Critical consideration — time-aware features:** Every feature must be computed using only information available BEFORE the heat it's predicting. For example, "win rate in the current season" must be computed using only events that occurred before the current event, not the full season's results. This is the most common source of data leakage in sports models and it can massively inflate apparent accuracy. Build this constraint into your feature engineering code from the start, and verify it with explicit tests.
 
-### 5.1b — Buoy-to-Shore Calibration Model (Conditional)
+### 5.1b — Buoy-Condition Feature Engineering
 
-If condition data and buoy data are available from Phase 1/4, this sub-step builds the calibration model that translates offshore buoy readings to onshore wave conditions at each specific break. This is essentially a small secondary model that feeds into the main prediction model. It should include: an empirical or physics-informed mapping from buoy swell readings to estimated wave face height/quality at each WSL venue, confidence intervals on that mapping (how much uncertainty exists?), and validation against actual competition-day conditions (if available). These confidence intervals should propagate into the competition model's condition features as input uncertainty rather than being treated as point estimates.
+Rather than building an intermediate model that translates buoy readings to estimated shore conditions (which introduces a noisy, hard-to-calibrate intermediate step), use NOAA buoy readings directly as model features. The model learns the relationship between buoy readings and surfer performance empirically — venue by venue — without requiring a physics-based or regression-based shore-condition estimate.
 
-**Buoy-to-shore translation formula — explicit requirement:** The calibration model must account for at least the following physical variables: swell height (Hs), swell period (Tp), swell direction (Dp), wind speed and direction, tide state, and bathymetric characteristics of each break. The translation is NOT a single formula — it varies by venue because bottom contour, reef shape, and exposure angle differ at every WSL break. The minimum viable approach is an empirical regression per venue: `wave_face_at_shore = f(Hs_buoy, Tp, Dp, wind, tide | venue)`, calibrated against reported competition-day wave heights from WSL heat data or Surfline observations. A more sophisticated approach would use shallow-water wave transformation physics (Snell's law for refraction, shoaling coefficients, wave breaking criteria), but the empirical approach may be sufficient given limited data. The deliverable is: for each WSL venue, a calibrated function that takes buoy/forecast inputs and outputs estimated shore wave conditions with confidence intervals.
+**Rationale for this approach:** Buoy data from NOAA is free, objective, precisely timestamped, and historically deep. Attempting to translate buoy readings to shore conditions requires calibration data (paired buoy readings + actual wave measurements at the break), which is subjective and sparse. By skipping the intermediate translation, we avoid that noisy step entirely and let the prediction model discover the buoy-to-performance relationship directly. Each venue has different buoys at different distances with different bathymetry — the model learns that mapping implicitly rather than requiring an explicit physics model per venue.
 
-🔴 **HUMAN GATE on 5.1b:** Review the calibration model's accuracy and confidence intervals. Are the confidence intervals tight enough to be useful, or is the buoy-to-shore mapping so noisy that condition features won't add value? This is a scope check — if the calibration is poor, it may be better to drop condition features entirely and rely on surfer and matchup features only, rather than adding noisy inputs that degrade the model.
+**Implementation steps:**
+
+1. **Buoy-venue mapping:** For each WSL CT venue, identify the 1–3 most relevant NOAA buoys. "Relevant" means: closest to the break, positioned in the appropriate swell window (a buoy behind an island or facing the wrong direction won't capture the swell that reaches the venue), and with sufficient historical data depth. Document the buoy IDs, coordinates, distance to break, and any known limitations (e.g., a buoy that was offline for a period).
+
+2. **Temporal matching:** For each historical heat in the dataset, match the buoy readings from the hours preceding that heat. Experiment with multiple time windows — the most recent reading before heat start, the peak readings from the preceding 6 hours, the average over the preceding 12 hours — and evaluate which temporal aggregation produces the most predictive features. Swell travel time from a deep-water buoy to shore is generally 15–45 minutes depending on distance and depth, so same-day readings should capture the relevant conditions.
+
+3. **Feature construction:** From the matched buoy readings, construct features including:
+   - Swell height (Hs) — significant wave height at the buoy
+   - Dominant swell period (Tp) — longer periods generally mean more powerful, better-formed waves
+   - Swell direction (Dp) — critical because each venue has optimal swell angles
+   - Wind speed and direction — onshore wind degrades wave quality; offshore wind improves it
+   - Interaction features: Hs × Tp (energy proxy), swell direction relative to venue's optimal angle, wind direction relative to shoreline orientation
+
+4. **Validation against WSL condition reports:** WSL reports wave height ranges and conditions per heat (e.g., "3–5 foot, offshore winds"). Use these reports as a sanity check — not as training targets, but to verify that heats where the buoy reads large swell correspond to WSL's "6–8 foot" reports and vice versa. If there are systematic disconnects (buoy reads large but WSL reports small), investigate whether the buoy is poorly positioned for that venue.
+
+5. **Venue-specific condition profiles:** As a secondary output, produce a "condition profile" per venue summarizing: typical buoy reading ranges during CT events, which swell directions hit the venue best, and how much scoring variance is explained by conditions at that venue vs. others. Some venues may be relatively condition-insensitive (e.g., a wave pool), while others are highly condition-dependent (e.g., Pipeline). This informs how much weight condition features should carry in the model on a per-venue basis.
+
+🟡 **AGENTIC CHECK on 5.1b:** After constructing buoy-condition features, run a simple correlation analysis: do the buoy features correlate with scoring distributions in the expected directions? (Higher swell → higher scoring variance? Offshore wind → higher average scores?) If the correlations are near zero or counterintuitive, investigate the buoy-venue mapping before proceeding — the wrong buoy will produce garbage features.
 
 ### 5.2 — Feature Quality Checks
 
@@ -580,7 +597,7 @@ Before building the full model, run a simple model (logistic regression or a sin
 3. Do the feature distributions look reasonable?
 4. Am I comfortable that no feature contains leaked future information?
 5. Has multicollinearity been validated against the Phase 0 pre-flags, and are the decisions about correlated features documented?
-6. If the buoy-to-shore calibration was attempted (5.1b), is the calibration quality sufficient to justify including condition features?
+6. Do the buoy-condition features (5.1b) correlate with scoring patterns in the expected directions? Are the buoy-venue mappings validated?
 7. Are there obvious features I haven't thought of? (Pause here and brainstorm — this is worth an hour of thinking.)
 8. **Update the Assumptions Register:** Document what assumptions each feature embeds (e.g., "recent form is computed over last 5 events" assumes 5 is the right window).
 
@@ -1083,6 +1100,70 @@ This isn't a phase — it's a system of checks that runs throughout all phases. 
 
 ---
 
+<a name="live-odds-pipeline"></a>
+## Cross-Cutting: Live Event Odds Pipeline
+
+This isn't a phase — it's a parallel workstream that runs continuously from the moment betting platforms are identified (Phase 0.4) through the life of the project. Its purpose is to capture betting odds data that disappears after events conclude. **Odds are the most perishable data in this project — once an event ends, uncaptured odds are gone permanently.**
+
+### Pipeline Design Principles
+
+**Odds are the priority.** Other live event data (heat draws, conditions, results) can generally be reconstructed after the fact from WSL's website and public records. Odds cannot. The pipeline should be designed odds-first, with other data as secondary captures.
+
+**Per-platform pipelines.** Each betting platform will have a different structure for presenting odds (different page layouts, different odds formats, different update cadences). Expect to build a separate collection approach for each platform rather than a one-size-fits-all scraper.
+
+**Use other sports as structural proxies.** Before a CT event goes live, investigate how each platform structures odds pages for other individual sports (tennis, golf, MMA) — these are likely structurally similar to how surf odds will be presented. This allows pre-building scrapers or manual recording templates against a live data source before the surf event starts.
+
+### Per-Platform Approach
+
+For each platform identified in Phase 0.4, document and build:
+
+**1. Odds page structure:** Where do surf odds appear on the platform? What URL pattern? How are heats organized (by round? by event day?)? What odds format is used (decimal, fractional, American)? Is there a single page per event or per heat?
+
+**2. Collection method (choose one per platform):**
+- **Automated scraping:** If the platform renders odds in scrapeable HTML or exposes an API (check network requests). Build a script that polls at defined intervals (e.g., every 30 minutes during an event window, every 6 hours before the event).
+- **Semi-automated:** If the page is JavaScript-heavy or behind authentication, use a browser automation approach (Selenium/Playwright) to load pages and extract odds.
+- **Manual recording:** If automated approaches aren't feasible or the platform is adversarial to scraping, use a structured spreadsheet template where odds are manually entered from the platform's interface. This is the fallback and should be assumed for the first event.
+
+**3. Data to capture per heat:**
+- Event name, round, heat number
+- Surfer names (both/all competitors in the heat)
+- Odds for each surfer (in original format + converted to decimal)
+- Timestamp of capture
+- Platform name
+- Whether these are opening odds, mid-event odds, or closing odds (based on proximity to heat start time)
+
+**4. Storage:** All captured odds land in `data/odds/` with a consistent schema. One row per surfer per heat per platform per timestamp. This allows tracking odds movement over time within a heat's pre-competition window.
+
+### First Event Protocol (Trial Run)
+
+The next upcoming 2026 CT event is the trial run. Expectations:
+
+**Before the event:**
+- Identify which platforms are posting surf odds (this may require checking daily as the event approaches — some platforms post odds only 1-2 days before an event starts).
+- For each platform found, document the page structure and build (or design) the collection method.
+- Pre-build manual recording templates as the guaranteed fallback.
+- If possible, test automated scrapers against the platform's non-surf pages (tennis, golf) to validate the approach.
+
+**During the event:**
+- Capture odds for every heat, from every available platform, at least once before the heat starts. Ideally capture opening odds (when first posted) and closing odds (last available before heat begins).
+- Accept that the first day or two will involve trial and error — odds page structures may differ from expectations, update timing may be unpredictable, and manual recording may be slower than anticipated.
+- Log every issue encountered: pages that don't load, odds that disappear before capture, format inconsistencies, timing surprises.
+
+**After the event:**
+- Produce a post-mortem documenting: what worked, what didn't, how many heats had odds successfully captured (target: >80% of heats from at least one platform), and what changes are needed for the next event.
+- Reform the pipelines based on lessons learned.
+
+**Second event onward:** Execute the reformed pipelines with the goal of capturing >95% of available odds across all platforms. The second event is the real baseline for data quality and completeness.
+
+### Integration with Other Phases
+
+- **Phase 5.0c (ALT reconstruction):** Defer until the forward-collected odds dataset reaches ~150+ heat-level observations (roughly 2 events). The odds pipeline is the gating dependency for 5.0c.
+- **Phase 8 (Model Testing):** Forward-collected odds are the primary dataset for the NXTbets blog comparison (8.5b) and the broader model-vs-market evaluation.
+- **Phase 10 (Backtesting):** Forward-collected odds are expected to be the primary backtesting dataset. The simulation plan (Phase 9.5) should be designed around the available forward-collected data rather than assuming a deep historical archive.
+- **Phase 13 (Monitoring):** The odds pipeline transitions from "data collection" to "ongoing monitoring input" — it continues running during live deployment to feed the ALT model reconstruction monitoring protocol.
+
+---
+
 <a name="checkpoints"></a>
 ## Cross-Cutting: Additional Guardrails & Practices
 
@@ -1170,6 +1251,20 @@ This is a master list of all re-anchor checks in the plan, for easy reference:
 | Annually during Phase 13 | Full master plan | System matches plan intentions |
 
 Additional ad-hoc re-anchor checks should be triggered whenever something "feels off" — unexpected results, surprising feature importances, or any situation where the current work seems disconnected from the original reasoning.
+
+---
+
+## Appendix D: Alternative Approach — Compressed Live-Testing Cycle
+
+**Status:** Documented for reference. Not the current plan, but available if the standard backtest approach (Phases 8–10) hits walls due to insufficient historical odds data.
+
+**Concept:** Rather than building the model, backtesting on historical data (where odds are unavailable), and then paper trading, compress the cycle by testing candidate models against live events as they happen using forward-collected odds. The sequence would be: build multiple candidate models on historical competition data (results, features) → for each upcoming event, generate pre-event predictions from each model → record the live odds as they're posted → after the event, compare each model's predicted probabilities against the actual odds and outcomes → accumulate results across several events to identify which model approach produces the most consistently positive expected value.
+
+**Why this might be needed:** The standard Phase 8–10 sequence assumes you have historical odds to backtest against. If forward odds collection is the primary odds dataset (as expected), you won't have enough data for a full backtest until you've collected several events' worth — and during that collection period, the models are sitting idle. The compressed approach uses that waiting period productively by testing models live (without money) as odds are collected.
+
+**Why it's not the default approach:** It conflates model development with model validation. If you tune model parameters based on how well they predicted the last event's outcomes relative to the odds, you risk in-sample fitting on a rolling basis. The mitigation is strict temporal separation: build the model on all data up to event N, freeze it completely, predict event N+1 against live odds, record the result, and do NOT retune the model based on that single event. Collect several events (3–5 minimum) of frozen-model predictions before drawing any conclusions. This discipline is difficult to maintain when results are coming in and the temptation to iterate is strong.
+
+**When to activate:** If, after 3+ events of forward odds collection, the standard backtest pathway still doesn't have enough odds data for a statistically meaningful simulation (Phase 10), pivot to this approach as the primary validation method.
 
 ---
 
