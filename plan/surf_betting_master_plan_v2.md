@@ -90,7 +90,7 @@ Research and document the following. The output should be a written reference do
 
 **Why this matters for modeling:** Every structural change listed above represents a potential data discontinuity. If you train a model on data spanning a format change without accounting for it, the model is learning from two different sports simultaneously. You need to know where the break points are before you design your data schema.
 
-**2026 format as deployment context:** The 2026 format — with higher-seeded surfers starting with priority in 2-person sudden-death heats, no Finals Day, and 1.5x multiplier for final two events — is the structure we are building toward. While historical data is valuable for learning surfer skill, the model's deployment context is 2026+ events. This has implications for priority modeling, live betting integration, and historical data mapping, which are detailed in their respective phases (5, 6, and 9).
+**2026 format as deployment context:** The 2026 format — with top-8 seeds receiving first-round byes, no Finals Day, a field reduction to 24M/16W at stops 10–11, and a 1.5x points multiplier for Pipeline only (the final event) — is the structure we are building toward. While historical data is valuable for learning surfer skill, the model's deployment context is 2026+ events. This has implications for seeding advantage modeling, live betting integration, and historical data mapping, which are detailed in their respective phases (5, 6, and 9).
 
 ### 0.2 — Generate Domain Hypotheses
 
@@ -194,6 +194,105 @@ If the answer to #2 is "no" or "I can't tell," that's not necessarily a deal-bre
 
 ---
 
+### Phase 0 Findings: Real-Data Analysis Results (April 2026)
+
+The following findings are confirmed results from Phase 0 execution using real WSL bracket data scraped from worldsurfleague.com and real NXTbets odds data. These findings update assumptions throughout the plan and should be treated as the empirical baseline for all downstream phases.
+
+#### 0.F1 — Dual Modeling Targets: Depth-of-Run AND Event Winner
+
+Phase 0 analysis shows that predicting *how far a surfer advances* is substantially more tractable than predicting *who wins the event*. The causal path from skill to round-reached is more deterministic than the path from skill to outright winner, because multiple heats average out single-heat variance (judging, wave luck, matchup draws).
+
+The model should predict **both** a full round-reached probability distribution AND an event-winner probability. We don't yet know which bet types will be available across different sportsbooks (event winner, head-to-head matchups, round advancement, podium/top-3, etc.), so the model needs to produce outputs flexible enough to exploit whatever markets exist. Depth-of-run prediction is the more reliable signal, but event-winner prediction is where the most liquid betting markets likely sit.
+
+**Dual-target approach:**
+- **Depth-of-run model:** P(reaches QF+), P(reaches SF+), P(reaches Final+), P(wins) — an ordinal/cumulative probability model
+- **Event-winner model:** standalone win probability, potentially informed by depth predictions but also capturing winner-specific factors (clutch performance, finals experience)
+- **Betting layer:** a separate strategy module that takes both model outputs and maps them to available bet types, applying edge thresholds and bankroll management
+
+**Evidence for depth-of-run as the *stronger* signal:**
+- 58.8% of outsiders (odds > +800) made QF or better across 11 events
+- Outsider-only event winner bets: +17.6% ROI (real data)
+- Mid-range surfers priced fairly for wins (13.0% actual vs 13.9% implied) but massively underpriced for advancement
+- The market (NXTbets) prices win probability only — depth-of-run is structurally unpriced
+
+**But event-winner prediction still matters because:**
+- Event-winner is the most common bet type; we may not always find advancement markets
+- Some surfers (e.g., Robinson: 2 wins from 7 events, +29.8% value gap) show exploitable winner pricing too
+- Win probability can be derived from depth prediction but may benefit from its own features (finals experience, clutch factor, head-to-head records in late rounds)
+
+#### 0.F2 — Confirmed Causal Graph from Real Data
+
+The following variables and relationships should inform feature engineering:
+
+**Input Variables (Tier 1):**
+- **Surfer Skill** (latent) — overall ability, career trajectory
+- **Form / Momentum** — recent event results, confidence indicators
+- **Wave Conditions** — swell size/direction, wind, tide (event-specific)
+- **Venue / Break Type** — reef, point, beach; left vs right; power vs performance
+
+**Mediating Variables (Tier 2):**
+- **Surfer-Spot Fit** — how well a surfer's style matches the wave (e.g., Robinson at reef breaks, Ewing at power waves). This was not in the original plan and should be a first-class feature.
+- **Seeding / Draw** — bracket position, heat matchups (weak effect but non-zero)
+
+**Outcome Variables (Tier 3-4):**
+- **Depth-of-Run** — round reached: OR/ER/R16/QF/SF/F/W. Higher signal-to-noise ratio; more predictable from inputs.
+- **Event Winner** — binary outcome. Lower signal-to-noise due to heat variance, but the most liquid betting market.
+- **Heat Variance** — judging inconsistency, wave allocation luck (noise injector, primarily affects Winner more than Depth)
+
+Both Depth-of-Run and Event Winner are co-equal prediction targets. Depth-of-run is where the clearest market inefficiency has been found so far, but the full landscape of available bet types is not yet known.
+
+**Value Assessment (Tier 5):**
+- **Betting Value** = f(model predictions, market odds, available bet types)
+- Strongest known edge: depth-of-run predictions vs win-only market pricing
+- But value may also exist in: event-winner markets (outsider wins), head-to-head matchups, podium bets, or other formats TBD
+- The betting strategy layer should be modular — it takes model outputs and maps them to whatever markets are available
+
+#### 0.F3 — Calibrated Edge Size (Real Data vs. Estimates)
+
+The estimated-data analysis overstated the edge. Real data corrections:
+
+| Metric | Estimated | Real | Delta |
+|---|---|---|---|
+| Outsider event-winner ROI | +73.9% | +17.6% | -56.3pp |
+| Overall flat-bet ROI | positive | -3.4% | confirms selective betting needed |
+| Outsiders making QF+ | n/a | 58.8% | new metric, no prior estimate |
+| Outsiders making SF+ | n/a | 35.3% | new metric, no prior estimate |
+
+**Key takeaway:** +17.6% ROI on outsider event-winner bets is still a strong edge in sports betting, but the model needs to be selective — flat-betting everything loses money. The real opportunity may be in advancement/matchup markets if those become available, or in using depth prediction to identify which outsider bets have the highest expected value.
+
+#### 0.F4 — Top Value Surfers (Confirmed with Real Data)
+
+These surfers consistently outperform their market pricing. "Value Gap" = actual deep-run rate minus average implied win probability.
+
+| Surfer | Events | Avg Odds | Deep Run % | Implied % | Value Gap |
+|---|---|---|---|---|---|
+| Griffin Colapinto | 9 | +1151 | 55.6% | 10.6% | +45.0% |
+| Ethan Ewing | 10 | +1028 | 50.0% | 9.8% | +40.2% |
+| Jack Robinson | 7 | +760 | 42.9% | 13.0% | +29.8% |
+| Italo Ferreira | 7 | +916 | 28.6% | 10.5% | +18.0% |
+| Filipe Toledo | 7 | +457 | 42.9% | 25.3% | +17.5% |
+| John John Florence | 7 | +888 | 14.3% | 11.6% | +2.7% |
+| Gabriel Medina | 8 | +710 | 12.5% | 13.8% | -1.3% |
+| Joao Chianca | 3 | +1951 | 0.0% | 5.2% | -5.2% |
+
+**Note:** Medina and Chianca are *overpriced* relative to their actual depth performance. Florence is roughly fairly priced.
+
+#### 0.F5 — Data Inventory (Phase 0 Deliverables)
+
+**What we have:**
+- `odds_dataset.json` — 123 NXTbets odds records (66 men's), 11 events, 24 surfers
+- `merged_dataset_real.json` — 63 matched records with confirmed WSL round-reached data
+- `wsl_real_results.csv` — 305 surfer-round records from WSL (all surfers, not just those with odds)
+- `nxtbets_heat_analysis_real.xlsx` — analysis workbook with 5 sheets
+
+**What we still need:**
+- ~14 more NXTbets articles (mostly 2025 season) for expanded odds coverage
+- Historical WSL results beyond our 11-event window (full 2022-2025 seasons for training data)
+- Wave/condition data per event (swell, wind — available from Surfline or similar)
+- Surfer profile data (stance, style, preferred wave type)
+
+---
+
 <a name="phase-1"></a>
 ## Phase 1: Data Landscape Audit
 
@@ -207,7 +306,7 @@ Note: this step is intentionally titled broadly. Do not constrain the search to 
 
 For each source you find, document: what data it contains, how far back it goes, what format it's in, how to access it (API, scraping, download), and what its limitations are. Specifically look for:
 
-**Official WSL data:** worldsurfleague.com result pages, any official APIs or data feeds, historical event archives. Pay particular attention to whether there is a structured API — in previous work, obvious API routes were missed. For every data source, actively probe for API access (check developer documentation, inspect network requests on the website, look for GraphQL endpoints, search for third-party API wrappers on GitHub). If it *seems like* there should be an easier access method than what you've found, keep digging — there usually is.
+**Official WSL data:** worldsurfleague.com result pages, any official APIs or data feeds, historical event archives. Pay particular attention to whether there is a structured API — in previous work, obvious API routes were missed. For every data source, actively probe for API access (check developer documentation, inspect network requests on the website, look for GraphQL endpoints, search for third-party API wrappers on GitHub). If it *seems like* there should be an easier access method than what you've found, keep digging — there usually is. **Phase 0 update:** A working JS extraction method via Chrome `fetch()` on worldsurfleague.com has been validated and can retrieve all rounds. This should be formalized into a scraping pipeline.
 
 **Third-party datasets:** Kaggle datasets, GitHub repos, academic datasets, surf analytics blogs or sites that have compiled data.
 
@@ -298,7 +397,11 @@ Based on what you learned in Phase 1 (not what you wish you had), design your da
 
 **Heats:** Event ID, round, heat number, surfers involved, heat result, conditions during the heat (if available).
 
+**Surfer-Event Results:** Event ID, surfer ID, `round_reached` (ordinal: OR < ER < R16 < QF < SF < F < W), event winner flag. **Phase 0 update:** `round_reached` must be a first-class column in the schema, not derived after the fact — the depth-of-run model depends on it as a primary target variable.
+
 **Surfers:** Surfer ID, name, stance, nationality, birth year, career start year, circuit.
+
+**Surfer-Venue History:** Surfer ID, venue/break ID, historical results at that venue (round reached, scores), break type classification. **Phase 0 update:** This table supports the surfer-spot fit feature identified as a first-class predictor in the confirmed causal graph (see 0.F2).
 
 **Waves (all waves, not just the best two):** Heat ID, surfer ID, wave number, wave score, timestamp within heat (if available), whether this wave counted toward the surfer's heat total. Capturing all waves — not just the two highest-scoring — is important for several reasons. The non-counting waves reveal information about wave selection strategy, consistency vs. volatility of scoring, risk appetite (did the surfer attempt big moves on "throwaway" waves?), and fatigue patterns within a heat. These may not be immediately useful features, but having the data makes them available for exploratory analysis and visualization. If you can only see the top-two scores, you're missing the process that produced them. Additionally, if timestamp markers for each wave exist within heat video recordings, capture those in this table — they would make video analysis (Phase 5b candidate) dramatically more efficient by pinpointing exactly when each wave occurs in the footage.
 
@@ -535,11 +638,15 @@ This monitoring protocol should be written into Phase 13 (Ongoing Monitoring) as
 
 Using your Phase 0 hypotheses as a roadmap — and the edge map from 5.0c as a prioritization guide — generate candidate features. Organize them by category:
 
-**Surfer form features:** Win rate (career, last N events, last N heats), average heat score, score variance, podium rate, trend (improving vs. declining form). Think carefully about the lookback window — too short and you get noise, too long and you miss form changes.
+**Target variables (Phase 0 update — dual targets):** The model must predict both: (a) ordinal `round_reached` (OR < ER < R16 < QF < SF < F < W) as a cumulative probability distribution, and (b) binary `winner`. These are co-equal prediction targets. See 0.F1 for rationale.
 
-**Matchup features:** Head-to-head record between the two surfers in a heat, style matchup considerations, relative ranking.
+**Surfer form features:** Win rate (career, last N events, last N heats), average heat score, score variance, podium rate, trend (improving vs. declining form), rolling window of recent depth-of-run results (e.g., average round reached over last N events). Think carefully about the lookback window — too short and you get noise, too long and you miss form changes.
 
-**Break/condition features:** Surfer's historical performance at this specific break, performance in similar conditions (if condition data is available), break type and how the surfer's historical scores vary by break type.
+**Matchup features:** Head-to-head record between the two surfers in a heat, style matchup considerations, relative ranking. **Phase 0 update:** Include head-to-head records specifically in late rounds (QF+) as a winner-specific feature — some surfers perform differently under elimination pressure.
+
+**Break/condition features:** Surfer's historical performance at this specific break, performance in similar conditions (if condition data is available), break type and how the surfer's historical scores vary by break type. **Phase 0 update — surfer-spot fit as first-class feature:** Surfer-spot fit (how well a surfer's style matches the wave at a given venue) was identified in Phase 0 as a first-class mediating variable in the causal graph. Build explicit surfer-venue features: historical depth-of-run at each venue/break type, scoring differential at preferred vs. non-preferred break types, and style-wave compatibility indicators.
+
+**Winner-specific features (Phase 0 update):** Finals record, clutch performance under pressure (scoring differential in SF+ rounds vs. earlier rounds), head-to-head records in late rounds. These supplement depth-of-run features specifically for the event-winner prediction target.
 
 **Situational features:** Round number, season point standings at time of heat, whether surfer is "at home" (break near their home country/region).
 
@@ -686,6 +793,8 @@ For each model family, assess on a grid:
 Based on your research, document which approach (or combination) you plan to use, and why. If you plan to test multiple approaches head-to-head (recommended), specify which ones and what metric you'll use to compare them.
 
 **A note on the causal emphasis:** You've asked for causal approaches over correlational ones. In practice, a reasonable strategy is to build a causal-ish model as your primary (e.g., Bayesian hierarchical model with a structure that reflects your domain hypotheses) and a correlational model as a challenger (e.g., XGBoost on the same features). If the correlational model significantly outperforms the causal one, that's a signal that either your causal model is mis-specified or there are important patterns you haven't accounted for. If they perform similarly, prefer the causal model because it's more robust to distributional shift and more interpretable.
+
+**Phase 0 update — dual-target model architecture:** The model must produce both depth-of-run predictions (P(QF+), P(SF+), P(F+), P(Win) as cumulative probabilities) and standalone event-winner predictions. Consider: (a) ordinal regression or cumulative probability models for depth-of-run, (b) a separate classifier for event winner if warranted, or (c) a single model that outputs the full probability distribution from which winner probability is derived. The depth model may serve as the backbone with an optional winner-specific head. Evaluation metrics must track calibration of advancement probabilities AND win prediction accuracy separately. Consider an ensemble where depth-derived win probability is combined with a winner-specific model.
 
 ### Phase 6 Gate
 
@@ -879,6 +988,13 @@ Don't just measure performance — understand the errors. When the model gets it
 **Flat staking:** Bet a fixed dollar amount. Simplest, but doesn't grow with your bankroll or adjust for edge.
 
 **Minimum edge threshold:** Regardless of staking strategy, set a minimum edge (model probability minus implied probability) below which you don't bet at all. This prevents placing bets where the edge is smaller than the uncertainty in your model.
+
+**Phase 0 update — modular betting layer:** The bet selection logic must be modular, mapping model outputs to whatever market types are available:
+- **Event winner markets:** bet when model P(Win) >> implied P(Win) from odds, especially at outsider prices
+- **Advancement/podium markets (if available):** bet when model P(QF+) or P(SF+) >> implied probability
+- **Head-to-head matchups (if available):** use depth + surfer-spot fit to identify mispriced matchups
+- **Other markets TBD:** the model should be flexible enough to evaluate any bet type that maps to "surfer X achieves outcome Y"
+Flat-betting all surfers is confirmed negative EV (-3.4% ROI from real data). The model MUST be selective. Apply filters: surfer-spot fit score, minimum model confidence threshold, bankroll management rules.
 
 ### 9.3 — Bankroll Management
 
